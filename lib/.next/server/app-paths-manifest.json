@@ -1,0 +1,19 @@
+{
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/login/page": "app/login/page.js",
+  "/(dashboard)/bills/generated/page": "app/(dashboard)/bills/generated/page.js",
+  "/(dashboard)/bills/preview/[id]/page": "app/(dashboard)/bills/preview/[id]/page.js",
+  "/(dashboard)/bills/thermal/[id]/page": "app/(dashboard)/bills/thermal/[id]/page.js",
+  "/(dashboard)/funds/page": "app/(dashboard)/funds/page.js",
+  "/(dashboard)/bills/page": "app/(dashboard)/bills/page.js",
+  "/(dashboard)/bills/print/[id]/page": "app/(dashboard)/bills/print/[id]/page.js",
+  "/(dashboard)/import/page": "app/(dashboard)/import/page.js",
+  "/(dashboard)/page": "app/(dashboard)/page.js",
+  "/(dashboard)/readings/page": "app/(dashboard)/readings/page.js",
+  "/(dashboard)/settings/printer/page": "app/(dashboard)/settings/printer/page.js",
+  "/(dashboard)/reports/page": "app/(dashboard)/reports/page.js",
+  "/(dashboard)/customers/page": "app/(dashboard)/customers/page.js",
+  "/(dashboard)/settings/page": "app/(dashboard)/settings/page.js",
+  "/(dashboard)/readings/history/page": "app/(dashboard)/readings/history/page.js"
+}
