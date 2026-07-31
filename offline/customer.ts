@@ -1,4 +1,5 @@
-import { db, Customer } from "./db";
+import { db } from "./db";
+import type { Customer } from "@/types/customer";
 
 /**
  * Save all customers to IndexedDB

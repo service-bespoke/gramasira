@@ -1,24 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import type { Route } from "next";
+import type { LucideIcon } from "lucide-react";
+
 import authService from "@/services/auth.service";
 import InstallButton from "@/components/layout/InstallButton";
-import Image from "next/image";
+
 import {
   Home,
   Users,
   Droplets,
   FileText,
-  CreditCard,
   Upload,
-  Wallet,
   BarChart3,
-  Settings,
   LogOut,
-  Clock3,
   ChevronRight,
-  DropletsIcon,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -26,19 +25,48 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-const menus = [
-  { title: "Dashboard", href: "/", icon: Home },
-  { title: "Customers", href: "/customers", icon: Users },
-  { title: "Import Excel", href: "/import", icon: Upload },
-  { title: "Meter Reading", href: "/readings", icon: Droplets },
-  { title: "Bill Generation", href: "/bills", icon: FileText },
-  //   { title: "Payments", href: "/payments", icon: CreditCard },
-  //   { title: "Tariff", href: "/tariff", icon: Wallet },
-  //   { title: "Additional Funds", href: "/funds", icon: Wallet },
-  { title: "Bill History", href: "/reports", icon: BarChart3 },
-  //   { title: "Pending Readings", href: "/readings/history", icon: Clock3 },
-  //   { title: "Settings", href: "/settings", icon: Settings },
-  { title: "Logout", href: "#", icon: LogOut },
+interface MenuItem {
+  title: string;
+  href: Route | "#";
+  icon: LucideIcon;
+}
+
+const menus: MenuItem[] = [
+  {
+    title: "Dashboard",
+    href: "/",
+    icon: Home,
+  },
+  {
+    title: "Customers",
+    href: "/customers",
+    icon: Users,
+  },
+  {
+    title: "Import Excel",
+    href: "/import",
+    icon: Upload,
+  },
+  {
+    title: "Meter Reading",
+    href: "/readings",
+    icon: Droplets,
+  },
+  {
+    title: "Bill Generation",
+    href: "/bills",
+    icon: FileText,
+  },
+  {
+    title: "Bill History",
+    href: "/reports",
+    icon: BarChart3,
+  },
+  {
+    title: "Logout",
+    href: "#",
+    icon: LogOut,
+  },
 ];
 
 export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
@@ -53,28 +81,16 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
     }
 
     localStorage.removeItem("user");
-
     router.replace("/login");
   }
 
   return (
     <aside
-      className={`
-        ${
-          mobile
-            ? "w-full h-full"
-            : "hidden lg:flex lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-72"
-        }
-
-        flex-col
-        bg-gradient-to-b
-        from-sky-700
-        via-sky-600
-        to-cyan-600
-        text-white
-        shadow-2xl
-        z-40
-      `}
+      className={`${
+        mobile
+          ? "w-full h-full"
+          : "hidden lg:flex lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-72"
+      } flex-col bg-gradient-to-b from-sky-700 via-sky-600 to-cyan-600 text-white shadow-2xl z-40`}
     >
       {/* Logo */}
       <div className="px-8 py-8 border-b border-white/20">
@@ -96,6 +112,7 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
           </div>
         </div>
       </div>
+
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2">
         {menus.map((menu) => {
@@ -104,20 +121,9 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
           if (menu.title === "Logout") {
             return (
               <button
-                key="logout"
+                key={menu.title}
                 onClick={logout}
-                className="
-                  w-full
-                  flex
-                  items-center
-                  justify-between
-                  rounded-2xl
-                  px-4
-                  py-4
-                  hover:bg-red-500
-                  transition-all
-                  duration-300
-                "
+                className="w-full flex items-center justify-between rounded-2xl px-4 py-4 hover:bg-red-500 transition-all duration-300"
               >
                 <div className="flex items-center gap-4">
                   <Icon size={22} />
@@ -134,35 +140,21 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
 
           return (
             <Link
-              key={menu.href}
+              key={menu.title}
               href={menu.href}
               onClick={() => onClose?.()}
-              className={`
-                group
-                flex
-                items-center
-                justify-between
-                rounded-2xl
-                px-4
-                py-4
-                transition-all
-                duration-300
-
-                ${
-                  active
-                    ? "bg-white text-sky-700 shadow-xl scale-[1.02]"
-                    : "hover:bg-white/20 hover:translate-x-1"
-                }
-              `}
+              className={`group flex items-center justify-between rounded-2xl px-4 py-4 transition-all duration-300 ${
+                active
+                  ? "bg-white text-sky-700 shadow-xl scale-[1.02]"
+                  : "hover:bg-white/20 hover:translate-x-1"
+              }`}
             >
               <div className="flex items-center gap-4">
                 <Icon
                   size={22}
-                  className={`
-                    transition-transform
-                    duration-300
-                    ${active ? "" : "group-hover:scale-110"}
-                  `}
+                  className={`transition-transform duration-300 ${
+                    active ? "" : "group-hover:scale-110"
+                  }`}
                 />
 
                 <span className="font-medium">{menu.title}</span>
@@ -178,6 +170,12 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/* Install Button */}
+      <div className="px-6">
+        <InstallButton />
+      </div>
+
       {/* Footer */}
       <div className="border-t border-white/20 p-6">
         <div className="rounded-2xl bg-white/15 backdrop-blur-md p-4">
@@ -190,7 +188,6 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
           </div>
         </div>
       </div>
-      ;
     </aside>
   );
 }

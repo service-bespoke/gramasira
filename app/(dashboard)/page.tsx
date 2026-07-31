@@ -28,21 +28,23 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         <DashboardCard
           title="Customers"
-          value={String(stats?.customers ?? 0)}
+  value={stats?.customers ?? 0}
           icon={<Users />}
           color="bg-sky-600"
         />
 
         <DashboardCard
-          title="Pending"
-          value={String(stats?.pending ?? 0)}
+                  title="Pending"
+                  value={stats?.pending ?? 0}
+          
           icon={<Droplets />}
           color="bg-orange-500"
         />
 
         <DashboardCard
           title="Bills"
-          value={String(stats?.bills ?? 0)}
+                 
+                   value={stats?.bills ?? 0}
           icon={<FileText />}
           color="bg-green-600"
         />

@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
+import type { LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { Home, Droplets, FileText, Settings } from "lucide-react";
 
-const menus = [
+type BottomMenu = {
+  title: string;
+  href: Route;
+  icon: LucideIcon;
+};
+
+const menus: BottomMenu[] = [
   {
     title: "Home",
     href: "/",
@@ -34,20 +42,17 @@ export default function BottomNavigation() {
   return (
     <nav
       className="
-      lg:hidden
-      fixed
-      bottom-0
-      left-0
-      right-0
-      z-50
-
-      bg-white/90
-      backdrop-blur-xl
-
-      border-t
-      border-slate-200
-
-      shadow-xl
+        lg:hidden
+        fixed
+        bottom-0
+        left-0
+        right-0
+        z-50
+        bg-white/90
+        backdrop-blur-xl
+        border-t
+        border-slate-200
+        shadow-xl
       "
     >
       <div className="grid grid-cols-4 h-16">
@@ -55,18 +60,22 @@ export default function BottomNavigation() {
           const Icon = menu.icon;
 
           const active =
-            pathname === menu.href || pathname.startsWith(menu.href + "/");
+            menu.href === "/"
+              ? pathname === "/"
+              : pathname === menu.href || pathname.startsWith(`${menu.href}/`);
 
           return (
             <Link
               key={menu.href}
               href={menu.href}
               className="
-              flex
-              flex-col
-              items-center
-              justify-center
-              gap-1
+                flex
+                flex-col
+                items-center
+                justify-center
+                gap-1
+                transition-all
+                duration-200
               "
             >
               <Icon

@@ -3,7 +3,7 @@ import AnimatedCounter from "@/components/common/AnimatedCounter";
 
 interface Props {
   title: string;
-  value: number;
+  value: string | number;
   icon: React.ReactNode;
   color: string;
   prefix?: string;
