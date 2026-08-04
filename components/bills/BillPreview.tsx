@@ -52,15 +52,20 @@ export default function BillPreview({ billId }: Props) {
   const status = bill.bill.status?.toString().toLowerCase() || "pending";
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
+    <div className="w-full max-w-5xl mx-auto px-3 sm:px-4 md:px-6">
       {/* PDF AREA START */}
 
-      <div id="bill-preview" className="bg-white rounded-xl shadow-xl p-8">
+      <div
+        id="bill-preview"
+        className="bg-white rounded-xl shadow-lg p-4 sm:p-6 md:p-8 overflow-hidden"
+      >
         {/* Header */}
 
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Water Bill</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+              Water Bill
+            </h1>
 
             <p className="text-gray-500 mt-1">Bill Preview</p>
           </div>
@@ -78,7 +83,7 @@ export default function BillPreview({ billId }: Props) {
 
         {/* Customer Details */}
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <div>
             <strong>Bill No</strong>
             <div>{bill.bill.bill_no}</div>
@@ -146,7 +151,7 @@ export default function BillPreview({ billId }: Props) {
 
       {/* ACTION BUTTONS OUTSIDE PDF */}
 
-      <div className="mt-6 flex gap-4">
+      <div className="mt-6 flex flex-col sm:flex-row gap-3">
         <BillActions billId={bill.bill.bill_id} bill={bill} />
       </div>
     </div>
