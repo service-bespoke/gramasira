@@ -1,7 +1,9 @@
 "use client";
+
+import { useEffect, useState } from "react";
+
 import { saveReading as saveOfflineReading } from "@/offline/reading";
 import locationService from "@/services/location.service";
-import { useEffect, useState } from "react";
 
 import ReadingToolbar from "./ReadingToolbar";
 import ReadingForm from "./ReadingForm";
@@ -17,20 +19,25 @@ import { Customer } from "@/types/customer";
 export default function ReadingPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
 
-  const [customerId, setCustomerId] = useState(0);
+  const [customerId, setCustomerId] = useState<number>(0);
 
-  const [previousReading, setPreviousReading] = useState(0);
+  const [previousReading, setPreviousReading] = useState<number>(0);
 
-  const [currentReading, setCurrentReading] = useState(0);
+  // FIXED
+  const [currentReading, setCurrentReading] = useState<number | "">("");
 
   useEffect(() => {
     loadCustomers();
   }, []);
 
   async function loadCustomers() {
-    const data = await getCustomersForReading();
-    console.log("Customers:", data);
-    setCustomers(data);
+    try {
+      const data = await getCustomersForReading();
+      console.log("Customers:", data);
+      setCustomers(data || []);
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   useEffect(() => {
@@ -40,9 +47,13 @@ export default function ReadingPage() {
   }, [customerId]);
 
   async function loadCustomer(id: number) {
-    const customer = await getCustomer(id);
+    try {
+      const customer = await getCustomer(id);
 
-    setPreviousReading(customer.previous_reading);
+      setPreviousReading(Number(customer.previous_reading ?? 0));
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   async function save() {
@@ -51,16 +62,28 @@ export default function ReadingPage() {
       return;
     }
 
+    if (currentReading === "") {
+      alert("Please enter current reading.");
+      return;
+    }
+
+    if (currentReading < previousReading) {
+      alert("Current reading cannot be less than previous reading.");
+      return;
+    }
+
     const customer = customers.find(
       (c) => Number(c.customer_id) === Number(customerId),
     );
+
     if (!customer) {
       alert("Customer not found.");
       return;
     }
 
-    // Get GPS
     const location = await locationService.getCurrentLocation();
+
+    const units = currentReading - previousReading;
 
     const readingData = {
       customer_id: customer.customer_id,
@@ -69,7 +92,7 @@ export default function ReadingPage() {
 
       previous_reading: previousReading,
       current_reading: currentReading,
-      units: currentReading - previousReading,
+      units,
 
       latitude: location.success ? location.latitude : undefined,
       longitude: location.success ? location.longitude : undefined,
@@ -79,19 +102,16 @@ export default function ReadingPage() {
       device_time: new Date().toLocaleString(),
 
       photo: "",
-
       status: "Pending",
     };
 
     try {
       if (navigator.onLine) {
-        // Existing API save
         await saveReading({
           customer_id: customerId,
           current_reading: currentReading,
         });
 
-        // Backup to IndexedDB as synced
         await saveOfflineReading({
           ...readingData,
           status: "Synced",
@@ -100,7 +120,6 @@ export default function ReadingPage() {
 
         alert("Reading saved successfully.");
       } else {
-        // Offline save
         await saveOfflineReading({
           ...readingData,
           status: "Pending",
@@ -109,10 +128,11 @@ export default function ReadingPage() {
         alert("Offline reading saved successfully.");
       }
 
-      // Clear form
       setCustomerId(0);
       setPreviousReading(0);
-      setCurrentReading(0);
+
+      // FIXED
+      setCurrentReading("");
     } catch (err) {
       console.error(err);
       alert("Unable to save reading.");
