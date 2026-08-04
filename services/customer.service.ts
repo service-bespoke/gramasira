@@ -16,7 +16,7 @@ export async function getCustomers(): Promise<Customer[]> {
     const response = await api.get("/customers");
 
     console.log("API Response:", response);
-
+console.log("Base URL:", api.defaults.baseURL);
     // Handle different API formats safely
     let data: any[] = [];
 
