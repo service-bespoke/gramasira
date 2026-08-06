@@ -17,47 +17,67 @@ export default function CustomerPage() {
   const [syncing, setSyncing] = useState(false);
   const [search, setSearch] = useState("");
   const [lastSync, setLastSync] = useState("Never");
+  const [online, setOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : true,
+  );
 
   useEffect(() => {
     initialize();
+
+    const handleOnline = async () => {
+      setOnline(true);
+      await syncCustomers(false);
+    };
+
+    const handleOffline = () => {
+      setOnline(false);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
   async function initialize() {
     setLoading(true);
 
     try {
-      // Load customers from IndexedDB
-      const offlineCustomers = await customerService.getCustomers();
-      setCustomers(offlineCustomers);
+      // Always load cached customers first
+      const cache = await customerService.getCustomers();
+      setCustomers(cache);
 
-      // Load last sync time
       const last = await customerSyncService.getLastSync();
 
       if (last) {
         setLastSync(new Date(last).toLocaleString());
       }
 
-      // First time & online -> sync automatically
-      if (navigator.onLine && offlineCustomers.length === 0) {
+      // Sync in background when online
+      if (navigator.onLine) {
         await syncCustomers(false);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error("Initialization Error:", error);
     } finally {
       setLoading(false);
     }
   }
 
-  async function syncCustomers(showAlert = true) {
-    setSyncing(true);
+  async function syncCustomers(showMessage = false) {
+    if (!navigator.onLine) return;
 
     try {
+      setSyncing(true);
+
       const count = await customerSyncService.syncCustomers();
 
-      // Reload from IndexedDB
-      const data = await customerService.getCustomers();
+      const cache = await customerService.getCustomers();
 
-      setCustomers(data);
+      setCustomers(cache);
 
       const last = await customerSyncService.getLastSync();
 
@@ -65,14 +85,14 @@ export default function CustomerPage() {
         setLastSync(new Date(last).toLocaleString());
       }
 
-      if (showAlert) {
+      if (showMessage) {
         alert(`${count} customers synchronized successfully.`);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
 
-      if (showAlert) {
-        alert("Unable to synchronize customers.");
+      if (showMessage) {
+        alert("Synchronization failed.");
       }
     } finally {
       setSyncing(false);
@@ -80,36 +100,44 @@ export default function CustomerPage() {
   }
 
   const filteredCustomers = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+
+    if (!keyword) return customers;
+
     return customers.filter((customer) => {
       return (
-        (customer.customer_name ?? "")
-          .toLowerCase()
-          .includes(search.toLowerCase()) ||
-        (customer.consumer_no ?? "")
-          .toLowerCase()
-          .includes(search.toLowerCase()) ||
-        (customer.mobile ?? "").includes(search)
+        (customer.customer_name ?? "").toLowerCase().includes(keyword) ||
+        (customer.consumer_no ?? "").toLowerCase().includes(keyword) ||
+        (customer.mobile ?? "").toLowerCase().includes(keyword)
       );
     });
   }, [customers, search]);
 
   return (
-    <>
+    <div className="space-y-4">
       <CustomerToolbar search={search} setSearch={setSearch} />
 
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
-          <p className="text-sm text-gray-500">Last Sync : {lastSync}</p>
+          <div className="text-sm text-gray-500">Last Sync : {lastSync}</div>
 
-          <p className="text-xs text-green-600">
+          <div className="text-sm font-medium">
             Cached Customers : {customers.length}
-          </p>
+          </div>
+
+          <div
+            className={`text-sm font-semibold ${
+              online ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            {online ? "🟢 Online" : "🔴 Offline"}
+          </div>
         </div>
 
         <button
           onClick={() => syncCustomers(true)}
-          disabled={syncing}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded"
+          disabled={!online || syncing}
+          className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white"
         >
           {syncing ? "Syncing..." : "🔄 Sync Customers"}
         </button>
@@ -118,6 +146,6 @@ export default function CustomerPage() {
       <CustomerStats total={customers.length} />
 
       <CustomerTable customers={filteredCustomers} loading={loading} />
-    </>
+    </div>
   );
 }
