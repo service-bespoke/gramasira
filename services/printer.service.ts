@@ -1,5 +1,7 @@
 "use client";
 
+import QRCode from "qrcode";
+
 /* =========================================================
    PRINTER SERVICE
    Web Bluetooth BLE Thermal Printer
@@ -10,31 +12,18 @@ class PrinterService {
   private characteristic: any = null;
   private service: any = null;
 
-  /*
-   * We keep the discovered UUIDs so we can see exactly
-   * which service/characteristic the printer is using.
-   */
   private serviceUuid: string | null = null;
   private characteristicUuid: string | null = null;
 
   /* =========================================================
      COMMON BLE THERMAL PRINTER UUIDS
-
-     FFE0 / FFE1
-     18F0 / 2AF1
-     FF00 / FF01 / FF02
-
-     Some printers use vendor-specific UUIDs.
-     ========================================================= */
+  ========================================================= */
 
   private readonly SERVICE_UUIDS = [
     "0000ffe0-0000-1000-8000-00805f9b34fb",
     "000018f0-0000-1000-8000-00805f9b34fb",
     "0000ff00-0000-1000-8000-00805f9b34fb",
 
-    /*
-     * Common vendor BLE printer service
-     */
     "49535343-fe7d-4ae5-8fa9-9fafd205e455",
   ];
 
@@ -46,16 +35,13 @@ class PrinterService {
     "0000ff01-0000-1000-8000-00805f9b34fb",
     "0000ff02-0000-1000-8000-00805f9b34fb",
 
-    /*
-     * Common vendor BLE printer characteristic
-     */
     "49535343-8841-43f4-a8d4-ecbe34729bb3",
     "49535343-1e4d-4bd9-ba61-23c647249616",
   ];
 
   /* =========================================================
      WEB BLUETOOTH SUPPORT
-     ========================================================= */
+  ========================================================= */
 
   isSupported(): boolean {
     return typeof window !== "undefined" && "bluetooth" in navigator;
@@ -63,7 +49,7 @@ class PrinterService {
 
   /* =========================================================
      CONNECTION STATUS
-     ========================================================= */
+  ========================================================= */
 
   isConnected(): boolean {
     return !!(
@@ -76,7 +62,7 @@ class PrinterService {
 
   /* =========================================================
      CONNECT
-     ========================================================= */
+  ========================================================= */
 
   async connect(): Promise<void> {
     if (!this.isSupported()) {
@@ -86,11 +72,9 @@ class PrinterService {
       );
     }
 
-    /*
-     * Already connected
-     */
     if (this.isConnected()) {
       console.log("Printer already connected:", this.device?.name);
+
       return;
     }
 
@@ -98,12 +82,6 @@ class PrinterService {
 
     console.log("Opening Bluetooth printer selector...");
 
-    /*
-     * Ask browser for printer
-     *
-     * We use acceptAllDevices because the actual
-     * printer UUID is not yet confirmed.
-     */
     this.device = await (navigator as any).bluetooth.requestDevice({
       acceptAllDevices: true,
 
@@ -114,9 +92,6 @@ class PrinterService {
 
     console.log("Device ID:", this.device?.id);
 
-    /*
-     * Disconnect event
-     */
     this.device.addEventListener("gattserverdisconnected", () => {
       console.log("Bluetooth printer disconnected.");
 
@@ -126,9 +101,6 @@ class PrinterService {
       this.characteristicUuid = null;
     });
 
-    /*
-     * Check GATT
-     */
     if (!this.device.gatt) {
       throw new Error(
         "This Bluetooth printer does not expose GATT. " +
@@ -136,23 +108,17 @@ class PrinterService {
       );
     }
 
-    /*
-     * Connect
-     */
     console.log("Connecting to printer GATT...");
 
     const server = await this.device.gatt.connect();
 
     console.log("GATT connected successfully.");
 
-    /*
-     * Try to discover the writable characteristic.
-     */
     await this.findWritableCharacteristic(server);
 
     if (!this.characteristic) {
       throw new Error(
-        "Could not find a writable BLE characteristic " + "on this printer.",
+        "Could not find a writable BLE characteristic on this printer.",
       );
     }
 
@@ -171,7 +137,7 @@ class PrinterService {
 
   /* =========================================================
      FIND WRITABLE CHARACTERISTIC
-     ========================================================= */
+  ========================================================= */
 
   private async findWritableCharacteristic(server: any): Promise<void> {
     console.log("Searching printer BLE services...");
@@ -191,9 +157,6 @@ class PrinterService {
 
         console.log("Service found:", serviceUuid);
 
-        /*
-         * Try known characteristics
-         */
         for (const characteristicUuid of this.CHARACTERISTIC_UUIDS) {
           try {
             console.log("Trying characteristic:", characteristicUuid);
@@ -216,17 +179,13 @@ class PrinterService {
             }
           } catch (error) {
             /*
-             * This UUID simply does not exist
-             * on this printer.
+             * UUID does not exist.
              */
           }
         }
 
         /*
-         * ---------------------------------------------------
-         * If known characteristic UUIDs failed,
-         * inspect all characteristics in this service.
-         * ---------------------------------------------------
+         * Inspect all characteristics.
          */
 
         try {
@@ -270,8 +229,7 @@ class PrinterService {
     /*
      * -------------------------------------------------------
      * SECOND:
-     * Try discovering all primary services that the browser
-     * allows us to access.
+     * Discover all primary services.
      * -------------------------------------------------------
      */
 
@@ -329,7 +287,7 @@ class PrinterService {
 
   /* =========================================================
      CHECK WRITABLE CHARACTERISTIC
-     ========================================================= */
+  ========================================================= */
 
   private isWritableCharacteristic(characteristic: any): boolean {
     if (!characteristic) {
@@ -343,7 +301,7 @@ class PrinterService {
 
   /* =========================================================
      DISCONNECT
-     ========================================================= */
+  ========================================================= */
 
   disconnect(): void {
     console.log("Disconnecting printer...");
@@ -368,7 +326,7 @@ class PrinterService {
 
   /* =========================================================
      WRITE RAW BYTES
-     ========================================================= */
+  ========================================================= */
 
   private async writeBytes(data: Uint8Array): Promise<void> {
     if (!this.characteristic) {
@@ -376,11 +334,9 @@ class PrinterService {
     }
 
     /*
-     * 20 bytes is the safest starting point
-     * for BLE thermal printers.
-     *
-     * We can increase this later after testing.
+     * 20 bytes is safe for BLE thermal printers.
      */
+
     const CHUNK_SIZE = 20;
 
     for (let i = 0; i < data.length; i += CHUNK_SIZE) {
@@ -403,15 +359,16 @@ class PrinterService {
 
       /*
        * Give printer time to process
-       * each BLE packet.
+       * every BLE packet.
        */
+
       await this.sleep(30);
     }
   }
 
   /* =========================================================
      WRITE TEXT
-     ========================================================= */
+  ========================================================= */
 
   async write(text: string): Promise<void> {
     const encoder = new TextEncoder();
@@ -423,7 +380,7 @@ class PrinterService {
 
   /* =========================================================
      ESC/POS COMMANDS
-     ========================================================= */
+  ========================================================= */
 
   private commands = {
     INIT: new Uint8Array([0x1b, 0x40]),
@@ -447,7 +404,7 @@ class PrinterService {
 
   /* =========================================================
      SEND COMMAND
-     ========================================================= */
+  ========================================================= */
 
   private async command(command: Uint8Array): Promise<void> {
     await this.writeBytes(command);
@@ -455,7 +412,7 @@ class PrinterService {
 
   /* =========================================================
      MONEY FORMAT
-     ========================================================= */
+  ========================================================= */
 
   private money(value: any): string {
     const number = Number(value ?? 0);
@@ -464,13 +421,233 @@ class PrinterService {
   }
 
   /* =========================================================
+     ESC/POS QR CODE
+     
+     Uses:
+       GS ( k
+
+     QR Model:
+       Model 2
+
+     Error correction:
+       Level M
+
+     Size:
+       6
+
+     This sends an actual QR code to the
+     thermal printer instead of printing
+     the UPI URL as text.
+  ========================================================= */
+
+  /* =========================================================
+     QR CODE AS RASTER IMAGE
+
+     IMPORTANT:
+     Do NOT use the printer's native QR command here.
+
+     Many inexpensive BLE thermal printers accept ESC/POS text
+     and bitmap data but do NOT implement GS ( k QR commands.
+
+     We therefore:
+       1. Generate the QR in the browser with the qrcode package.
+       2. Render it to a canvas.
+       3. Convert canvas pixels to 1-bit ESC/POS bitmap data.
+       4. Send the bitmap in small BLE packets.
+
+     This prints the actual QR image instead of the UPI URL.
+  ========================================================= */
+
+  private async printQRCode(data: string): Promise<void> {
+    const qrText = String(data ?? "").trim();
+
+    if (!qrText) {
+      console.log("QR data is empty.");
+      return;
+    }
+
+    console.log("Generating bitmap QR code:", qrText);
+
+    if (typeof window === "undefined") {
+      throw new Error("QR image generation requires a browser environment.");
+    }
+
+    /*
+     * 58mm printers normally have 384 printable dots.
+     * Keep the QR at 280 dots so it has a white margin around it.
+     *
+     * The canvas is square and includes a quiet zone.
+     */
+    const qrSize = 280;
+
+    /*
+     * Generate QR as a data URL.
+     *
+     * margin=4 is important for QR scanners.
+     * errorCorrectionLevel=M gives a good balance between
+     * reliability and physical QR size.
+     */
+    const dataUrl = await QRCode.toDataURL(qrText, {
+      errorCorrectionLevel: "M",
+      type: "image/png",
+      width: qrSize,
+      margin: 4,
+      color: {
+        dark: "#000000",
+        light: "#ffffff",
+      },
+    });
+
+    /*
+     * Decode the generated PNG into an Image.
+     */
+    const image = new Image();
+
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () =>
+        reject(new Error("Could not decode generated QR image."));
+      image.src = dataUrl;
+    });
+
+    /*
+     * Draw to canvas.
+     */
+    const canvas = document.createElement("canvas");
+    canvas.width = qrSize;
+    canvas.height = qrSize;
+
+    const ctx = canvas.getContext("2d", {
+      willReadFrequently: true,
+    });
+
+    if (!ctx) {
+      throw new Error("Could not create canvas context for QR printing.");
+    }
+
+    /*
+     * Force a clean white background.
+     */
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, qrSize, qrSize);
+
+    ctx.drawImage(image, 0, 0, qrSize, qrSize);
+
+    const imageData = ctx.getImageData(0, 0, qrSize, qrSize);
+
+    /*
+     * ESC/POS raster image command:
+     *
+     * GS v 0
+     * 1D 76 30 00
+     * xL xH yL yH
+     * bitmap data
+     *
+     * One bit represents one horizontal dot.
+     */
+    const width = qrSize;
+    const height = qrSize;
+
+    const bytesPerRow = Math.ceil(width / 8);
+
+    const bitmap = new Uint8Array(bytesPerRow * height);
+
+    /*
+     * Convert pixels to monochrome.
+     *
+     * QR black pixels become 1.
+     * White pixels become 0.
+     *
+     * A threshold of 180 makes the conversion robust against
+     * anti-aliased edges.
+     */
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const pixelIndex = (y * width + x) * 4;
+
+        const r = imageData.data[pixelIndex];
+
+        const g = imageData.data[pixelIndex + 1];
+
+        const b = imageData.data[pixelIndex + 2];
+
+        const a = imageData.data[pixelIndex + 3];
+
+        /*
+         * Treat transparent pixels as white.
+         */
+        const gray = a === 0 ? 255 : 0.299 * r + 0.587 * g + 0.114 * b;
+
+        if (gray < 180) {
+          const byteIndex = y * bytesPerRow + Math.floor(x / 8);
+
+          const bit = 7 - (x % 8);
+
+          bitmap[byteIndex] |= 1 << bit;
+        }
+      }
+    }
+
+    /*
+     * Build ESC/POS raster header.
+     *
+     * Width is measured in bytes.
+     * Height is measured in dots.
+     */
+    const header = new Uint8Array([
+      0x1d,
+      0x76,
+      0x30,
+      0x00,
+
+      bytesPerRow & 0xff,
+      (bytesPerRow >> 8) & 0xff,
+
+      height & 0xff,
+      (height >> 8) & 0xff,
+    ]);
+
+    /*
+     * Combine header + bitmap.
+     */
+    const output = new Uint8Array(header.length + bitmap.length);
+
+    output.set(header, 0);
+    output.set(bitmap, header.length);
+
+    console.log("QR bitmap prepared:", {
+      width,
+      height,
+      bytesPerRow,
+      totalBytes: output.length,
+    });
+
+    /*
+     * Send the bitmap.
+     *
+     * writeBytes() already breaks the data into 20-byte BLE
+     * packets and waits between packets, which is important
+     * for small BLE thermal printers.
+     */
+    await this.writeBytes(output);
+
+    /*
+     * Extra processing time for the printer's image buffer.
+     */
+    await this.sleep(500);
+
+    console.log("QR bitmap sent to thermal printer.");
+  }
+
+  /* =========================================================
      PRINT BILL
-     ========================================================= */
+  ========================================================= */
 
   async printBill(bill: any): Promise<void> {
     /*
      * Automatically connect if required.
      */
+
     if (!this.isConnected()) {
       await this.connect();
     }
@@ -479,23 +656,27 @@ class PrinterService {
       throw new Error("Printer connection failed.");
     }
 
-    const info = bill.bill;
+    const info = bill?.bill ?? {};
 
-    const details = bill.details ?? [];
+    const details = bill?.details ?? [];
 
-    const funds = bill.funds ?? [];
+    const funds = bill?.funds ?? [];
 
     console.log("Starting thermal print...");
 
+    console.log("Bill information:", info);
+
+    console.log("QR STRING:", info.qr_string);
+
     /* =======================================================
        INITIALIZE
-       ======================================================= */
+    ======================================================= */
 
     await this.command(this.commands.INIT);
 
     /* =======================================================
        HEADER
-       ======================================================= */
+    ======================================================= */
 
     await this.command(this.commands.CENTER);
 
@@ -517,7 +698,7 @@ class PrinterService {
 
     /* =======================================================
        BILL DETAILS
-       ======================================================= */
+    ======================================================= */
 
     await this.command(this.commands.LEFT);
 
@@ -533,7 +714,7 @@ class PrinterService {
 
     /* =======================================================
        METER READING
-       ======================================================= */
+    ======================================================= */
 
     await this.command(this.commands.BOLD_ON);
 
@@ -551,7 +732,7 @@ class PrinterService {
 
     /* =======================================================
        CONSUMPTION CHARGES
-       ======================================================= */
+    ======================================================= */
 
     if (details.length > 0) {
       await this.command(this.commands.BOLD_ON);
@@ -566,7 +747,9 @@ class PrinterService {
         );
 
         await this.write(
-          `${item.units ?? 0} x Rs ${this.money(item.rate)} = Rs ${this.money(item.amount)}\n`,
+          `${item.units ?? 0} x Rs ${this.money(item.rate)} = Rs ${this.money(
+            item.amount,
+          )}\n`,
         );
       }
 
@@ -575,7 +758,7 @@ class PrinterService {
 
     /* =======================================================
        ADDITIONAL FUNDS
-       ======================================================= */
+    ======================================================= */
 
     if (funds.length > 0) {
       await this.command(this.commands.BOLD_ON);
@@ -595,7 +778,7 @@ class PrinterService {
 
     /* =======================================================
        CHARGES
-       ======================================================= */
+    ======================================================= */
 
     await this.write(`Water Charge : Rs ${this.money(info.water_charge)}\n`);
 
@@ -615,7 +798,7 @@ class PrinterService {
 
     /* =======================================================
        TOTAL
-       ======================================================= */
+    ======================================================= */
 
     await this.command(this.commands.BOLD_ON);
 
@@ -627,15 +810,46 @@ class PrinterService {
 
     await this.command(this.commands.BOLD_OFF);
 
+    /* =======================================================
+       PAYMENT STATUS
+    ======================================================= */
+
+    if (String(info.status ?? "").toLowerCase() === "paid") {
+      await this.command(this.commands.CENTER);
+
+      await this.command(this.commands.BOLD_ON);
+
+      await this.write("**** PAID ****\n");
+
+      await this.command(this.commands.BOLD_OFF);
+
+      await this.command(this.commands.LEFT);
+    }
+
     await this.write(`Due Date : ${info.due_date ?? ""}\n`);
+
+    /*
+     * Payment date if available.
+     */
+
+    if (info.payment_date) {
+      await this.write(`Paid Date : ${info.payment_date}\n`);
+    }
 
     await this.write("--------------------------------\n");
 
     /* =======================================================
-       UPI
-       ======================================================= */
+       UPI QR CODE
+       
+       IMPORTANT:
+       
+       DO NOT PRINT qr_string AS TEXT.
+       
+       Instead send it to the printer's
+       ESC/POS QR-code command.
+    ======================================================= */
 
-    if (info.qr_string) {
+    if (info.qr_string && String(info.qr_string).trim() !== "") {
       await this.command(this.commands.CENTER);
 
       await this.command(this.commands.BOLD_ON);
@@ -645,18 +859,17 @@ class PrinterService {
       await this.command(this.commands.BOLD_OFF);
 
       /*
-       * At this stage we print the UPI string.
-       *
-       * We are NOT sending the QR image yet.
+       * ACTUAL QR CODE
        */
-      await this.write(`${info.qr_string}\n`);
+
+      await this.printQRCode(String(info.qr_string).trim());
 
       await this.write("\n");
     }
 
     /* =======================================================
        FOOTER
-       ======================================================= */
+    ======================================================= */
 
     await this.command(this.commands.CENTER);
 
@@ -670,20 +883,14 @@ class PrinterService {
 
     /* =======================================================
        FEED PAPER
-       ======================================================= */
+    ======================================================= */
 
     await this.write("\n\n\n\n");
 
     /* =======================================================
        CUT PAPER
-       ======================================================= */
+    ======================================================= */
 
-    /*
-     * SP-POS891ED may or may not have a cutter.
-     *
-     * We don't allow a cutter error to make the
-     * complete print operation appear failed.
-     */
     try {
       await this.command(this.commands.CUT);
     } catch (error) {
@@ -695,7 +902,7 @@ class PrinterService {
 
   /* =========================================================
      GET DEBUG INFORMATION
-     ========================================================= */
+  ========================================================= */
 
   getPrinterInfo(): any {
     return {
@@ -713,7 +920,7 @@ class PrinterService {
 
   /* =========================================================
      DELAY
-     ========================================================= */
+  ========================================================= */
 
   private sleep(milliseconds: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -722,7 +929,7 @@ class PrinterService {
 
 /* =========================================================
    SINGLE PRINTER INSTANCE
-   ========================================================= */
+========================================================= */
 
 const printerService = new PrinterService();
 

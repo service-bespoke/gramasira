@@ -18,6 +18,7 @@ import {
   BarChart3,
   LogOut,
   ChevronRight,
+  ReceiptIndianRupee,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -56,6 +57,11 @@ const menus: MenuItem[] = [
     title: "Bill Generation",
     href: "/bills",
     icon: FileText,
+  },
+  {
+    title: "Outstanding Bills",
+    href: "/outstanding",
+    icon: ReceiptIndianRupee,
   },
   {
     title: "Bill History",
@@ -118,6 +124,9 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
         {menus.map((menu) => {
           const Icon = menu.icon;
 
+          {
+            /* Logout */
+          }
           if (menu.title === "Logout") {
             return (
               <button

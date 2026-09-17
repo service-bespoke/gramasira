@@ -23,6 +23,36 @@ export default function BillPreview({ billId }: Props) {
   const [printing, setPrinting] = useState(false);
 
   /* =========================================================
+     FORMAT CREATED DATE
+
+     Input:
+       2026-09-11 10:25:30
+
+     Output:
+       11/09/26
+
+     This directly extracts the date from the MySQL
+     YYYY-MM-DD portion and avoids timezone conversion.
+  ========================================================= */
+
+  function formatCreatedDate(value: any) {
+    if (!value) return "";
+
+    const dateString = String(value).trim();
+
+    // MySQL DATE / DATETIME
+    const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+    if (match) {
+      const [, year, month, day] = match;
+
+      return `${day}/${month}/${year}`;
+    }
+
+    return dateString;
+  }
+
+  /* =========================================================
      LOAD BILL
   ========================================================= */
 
@@ -54,152 +84,139 @@ export default function BillPreview({ billId }: Props) {
      DIRECT THERMAL PRINT
   ========================================================= */
 
-async function handleThermalPrint() {
-  if (printing) return;
+  async function handleThermalPrint() {
+    if (printing) return;
 
-  try {
-    setPrinting(true);
+    try {
+      setPrinting(true);
 
-    console.log("========================================");
-    console.log("DIRECT THERMAL PRINT START");
-    console.log("Bill ID:", billId);
-    console.log("========================================");
+      console.log("========================================");
+      console.log("DIRECT THERMAL PRINT START");
+      console.log("Bill ID:", billId);
+      console.log("========================================");
 
-    // ---------------------------------------------
-    // CHECK BILL
-    // ---------------------------------------------
+      // ---------------------------------------------
+      // CHECK BILL
+      // ---------------------------------------------
 
-    if (!bill?.bill) {
-      throw new Error("Bill information is not available.");
+      if (!bill?.bill) {
+        throw new Error("Bill information is not available.");
+      }
+
+      // ---------------------------------------------
+      // LOAD COMPLETE BILL
+      // ---------------------------------------------
+
+      console.log("Loading bill data...");
+
+      const billData = await billService.getBill(billId);
+
+      console.log("Complete bill data:", billData);
+
+      if (!billData || !billData.bill) {
+        throw new Error("Unable to load bill information.");
+      }
+
+      // ---------------------------------------------
+      // CHECK PRINTER SERVICE
+      // ---------------------------------------------
+
+      console.log("Printer service:", printerService);
+
+      if (!printerService) {
+        throw new Error("Printer service is not available.");
+      }
+
+      // ---------------------------------------------
+      // CHECK BLUETOOTH SUPPORT
+      // ---------------------------------------------
+
+      if (
+        typeof printerService.isSupported === "function" &&
+        !printerService.isSupported()
+      ) {
+        throw new Error("Web Bluetooth is not supported in this browser.");
+      }
+
+      // ---------------------------------------------
+      // CONNECT
+      // ---------------------------------------------
+
+      if (
+        typeof printerService.isConnected === "function" &&
+        !printerService.isConnected()
+      ) {
+        console.log("Printer is not connected.");
+        console.log("Opening printer selection...");
+
+        await printerService.connect();
+
+        console.log("Printer connection completed.");
+      }
+
+      // ---------------------------------------------
+      // VERIFY CONNECTION
+      // ---------------------------------------------
+
+      if (
+        typeof printerService.isConnected === "function" &&
+        !printerService.isConnected()
+      ) {
+        throw new Error("Printer connection was not established.");
+      }
+
+      // ---------------------------------------------
+      // PRINT
+      // ---------------------------------------------
+
+      console.log("Sending bill to printer...");
+
+      if (typeof printerService.printBill !== "function") {
+        throw new Error("printerService.printBill() is not available.");
+      }
+
+      await printerService.printBill(billData);
+
+      console.log("========================================");
+      console.log("THERMAL PRINT SUCCESS");
+      console.log("========================================");
+
+      alert("Receipt printed successfully.");
+    } catch (error: any) {
+      console.log("========================================");
+      console.log("THERMAL PRINT FAILED");
+      console.log("========================================");
+
+      console.log("Error object:", error);
+      console.log("Error name:", error?.name);
+      console.log("Error message:", error?.message);
+      console.log("Error code:", error?.code);
+      console.log("Error stack:", error?.stack);
+
+      console.log("========================================");
+
+      // ---------------------------------------------
+      // USER CANCELLED PRINTER SELECTION
+      // ---------------------------------------------
+
+      if (error?.name === "NotFoundError") {
+        alert("Printer selection was cancelled.");
+        return;
+      }
+
+      // ---------------------------------------------
+      // DISPLAY REAL ERROR
+      // ---------------------------------------------
+
+      const message =
+        error?.message || error?.name || "Unable to print receipt.";
+
+      alert("Thermal printer error:\n\n" + message);
+    } finally {
+      setPrinting(false);
     }
-
-    // ---------------------------------------------
-    // LOAD COMPLETE BILL
-    // ---------------------------------------------
-
-    console.log("Loading bill data...");
-
-    const billData = await billService.getBill(billId);
-
-    console.log("Complete bill data:", billData);
-
-    if (!billData || !billData.bill) {
-      throw new Error("Unable to load bill information.");
-    }
-
-    // ---------------------------------------------
-    // CHECK PRINTER SERVICE
-    // ---------------------------------------------
-
-    console.log("Printer service:", printerService);
-
-    if (!printerService) {
-      throw new Error("Printer service is not available.");
-    }
-
-    // ---------------------------------------------
-    // CHECK BLUETOOTH SUPPORT
-    // ---------------------------------------------
-
-    if (
-      typeof printerService.isSupported === "function" &&
-      !printerService.isSupported()
-    ) {
-      throw new Error(
-        "Web Bluetooth is not supported in this browser."
-      );
-    }
-
-    // ---------------------------------------------
-    // CONNECT
-    // ---------------------------------------------
-
-    if (
-      typeof printerService.isConnected === "function" &&
-      !printerService.isConnected()
-    ) {
-      console.log("Printer is not connected.");
-      console.log("Opening printer selection...");
-
-      await printerService.connect();
-
-      console.log("Printer connection completed.");
-    }
-
-    // ---------------------------------------------
-    // VERIFY CONNECTION
-    // ---------------------------------------------
-
-    if (
-      typeof printerService.isConnected === "function" &&
-      !printerService.isConnected()
-    ) {
-      throw new Error(
-        "Printer connection was not established."
-      );
-    }
-
-    // ---------------------------------------------
-    // PRINT
-    // ---------------------------------------------
-
-    console.log("Sending bill to printer...");
-
-    if (typeof printerService.printBill !== "function") {
-      throw new Error(
-        "printerService.printBill() is not available."
-      );
-    }
-
-    await printerService.printBill(billData);
-
-    console.log("========================================");
-    console.log("THERMAL PRINT SUCCESS");
-    console.log("========================================");
-
-    alert("Receipt printed successfully.");
-
-  } catch (error: any) {
-
-    console.log("========================================");
-    console.log("THERMAL PRINT FAILED");
-    console.log("========================================");
-
-    console.log("Error object:", error);
-    console.log("Error name:", error?.name);
-    console.log("Error message:", error?.message);
-    console.log("Error code:", error?.code);
-    console.log("Error stack:", error?.stack);
-
-    console.log("========================================");
-
-    // ---------------------------------------------
-    // USER CANCELLED PRINTER SELECTION
-    // ---------------------------------------------
-
-    if (error?.name === "NotFoundError") {
-      alert("Printer selection was cancelled.");
-      return;
-    }
-
-    // ---------------------------------------------
-    // DISPLAY REAL ERROR
-    // ---------------------------------------------
-
-    const message =
-      error?.message ||
-      error?.name ||
-      "Unable to print receipt.";
-
-    alert(
-      "Thermal printer error:\n\n" +
-      message
-    );
-
-  } finally {
-    setPrinting(false);
   }
-}
+
   /* =========================================================
      A4 PRINT
   ========================================================= */
@@ -288,6 +305,35 @@ async function handleThermalPrint() {
             <p className="text-gray-500 mt-1">Bill Preview</p>
           </div>
 
+          {/* =================================================
+              CREATED DATE
+
+              Format:
+              dd/mm/yy
+          ================================================= */}
+
+          <span
+            className={`
+              px-4
+              py-2
+              rounded-full
+              text-sm
+              font-semibold
+              ${
+                status === "paid"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-orange-100 text-orange-700"
+              }
+            `}
+          >
+            {formatCreatedDate(bill.bill.created_at)}
+          </span>
+
+          {/* =================================================
+              STATUS
+          ================================================= */}
+
+          {/*
           <span
             className={`
               px-4
@@ -304,6 +350,7 @@ async function handleThermalPrint() {
           >
             {bill.bill.status}
           </span>
+          */}
         </div>
 
         {/* =================================================
@@ -394,13 +441,6 @@ async function handleThermalPrint() {
 
       {/* =====================================================
           ACTION BUTTONS
-
-          IMPORTANT:
-          BillActions is NOT used here.
-
-          Therefore the old orange
-          "Print Thermal Receipt" button
-          will NOT appear.
       ===================================================== */}
 
       <div

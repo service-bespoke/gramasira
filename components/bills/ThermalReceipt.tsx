@@ -25,6 +25,65 @@ export default function ThermalReceipt({ bill }: Props) {
     });
 
   /* =========================================================
+     FORMAT DATE
+     
+     Due Date:
+        dd/mm/yyyy
+
+     Created Date:
+        dd/mm/yy
+  ========================================================= */
+
+  const formatDate = (value: any, shortYear = false) => {
+    if (!value) return "";
+
+    /*
+     * Handle common MySQL datetime format:
+     * YYYY-MM-DD HH:mm:ss
+     *
+     * Also handles:
+     * YYYY-MM-DD
+     */
+
+    const valueString = String(value).trim();
+
+    let date: Date;
+
+    /*
+     * MySQL date/datetime
+     */
+    if (/^\d{4}-\d{2}-\d{2}/.test(valueString)) {
+      const parts = valueString.split(/[- :T]/);
+
+      const year = Number(parts[0]);
+      const month = Number(parts[1]);
+      const day = Number(parts[2]);
+
+      /*
+       * Use local date construction so timezone conversion
+       * does not accidentally change the displayed date.
+       */
+      date = new Date(year, month - 1, day);
+    } else {
+      date = new Date(valueString);
+    }
+
+    if (isNaN(date.getTime())) {
+      return valueString;
+    }
+
+    const day = String(date.getDate()).padStart(2, "0");
+
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+
+    const year = shortYear
+      ? String(date.getFullYear()).slice(-2)
+      : String(date.getFullYear());
+
+    return `${day}/${month}/${year}`;
+  };
+
+  /* =========================================================
      BUILD PRINT DATA
   ========================================================= */
 
@@ -48,7 +107,16 @@ export default function ThermalReceipt({ bill }: Props) {
         discount: info.discount ?? 0,
 
         total_amount: info.total_amount ?? 0,
-        due_date: info.due_date ?? "",
+
+        /*
+         * Due Date -> dd/mm/yyyy
+         */
+        due_date: formatDate(info.due_date),
+
+        /*
+         * Created Date -> dd/mm/yy
+         */
+        created_at: formatDate(info.created_at, true),
 
         qr_string: info.qr_string ?? "",
       },
@@ -299,11 +367,11 @@ export default function ThermalReceipt({ bill }: Props) {
             <div
               key={index}
               className="
-                  mb-2
-                  border-b
-                  border-dashed
-                  pb-2
-                "
+                mb-2
+                border-b
+                border-dashed
+                pb-2
+              "
             >
               <div className="text-xs text-gray-500">
                 {item.slab_from}-{item.slab_to} Litres
@@ -338,10 +406,10 @@ export default function ThermalReceipt({ bill }: Props) {
               <div
                 key={index}
                 className="
-                    flex
-                    justify-between
-                    mt-2
-                  "
+                  flex
+                  justify-between
+                  mt-2
+                "
               >
                 <span>{item.fund_name}</span>
 
@@ -369,10 +437,10 @@ export default function ThermalReceipt({ bill }: Props) {
             <div
               key={index}
               className="
-                  flex
-                  justify-between
-                  gap-3
-                "
+                flex
+                justify-between
+                gap-3
+              "
             >
               <span>{row[0]}</span>
 
@@ -402,7 +470,20 @@ export default function ThermalReceipt({ bill }: Props) {
             <span>₹{format(info.total_amount)}</span>
           </div>
 
-          <div className="text-xs mt-2">Due Date : {info.due_date}</div>
+          {/* =================================================
+              DATE INFORMATION
+
+              Due Date  -> dd/mm/yyyy
+              Created   -> dd/mm/yy
+          ================================================= */}
+
+          <div className="text-xs mt-2">
+            Due Date : {formatDate(info.due_date)}
+          </div>
+
+          <div className="text-xs mt-1">
+            Created : {formatDate(info.created_at, true)}
+          </div>
         </div>
 
         <div className="border-t border-dashed" />
@@ -463,15 +544,6 @@ export default function ThermalReceipt({ bill }: Props) {
 
             {/* =================================================
                 DIRECT THERMAL PRINT
-
-                This is now the ONLY Bluetooth button.
-
-                Clicking it:
-                1. Checks Web Bluetooth
-                2. Opens pairing if necessary
-                3. Finds writable BLE characteristic
-                4. Sends ESC/POS
-                5. Prints receipt
             ================================================= */}
 
             <button

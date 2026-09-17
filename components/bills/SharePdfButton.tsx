@@ -16,7 +16,9 @@ export default function SharePdfButton({ bill }: Props) {
         return;
       }
 
-      const doc = generateBillPdf(bill);
+      // IMPORTANT:
+      // generateBillPdf() is async because it generates the QR image.
+      const doc = await generateBillPdf(bill);
 
       const blob = doc.output("blob");
 
@@ -27,7 +29,12 @@ export default function SharePdfButton({ bill }: Props) {
       });
 
       // Mobile Share API
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      if (
+        navigator.canShare &&
+        navigator.canShare({
+          files: [file],
+        })
+      ) {
         await navigator.share({
           title: `Water Bill ${bill.bill.bill_no}`,
           text: `Water Bill - ${bill.bill.bill_no}`,
@@ -37,12 +44,12 @@ export default function SharePdfButton({ bill }: Props) {
         return;
       }
 
-      // Desktop Download
+      // Desktop download
       doc.save(fileName);
     } catch (error) {
       console.error("PDF Generation Error:", error);
 
-      alert("Unable to generate PDF.");
+      alert("Unable to generate PDF. Please try again.");
     }
   }
 
