@@ -2,126 +2,10 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 
-/**
- * Convert an image URL to a data URL.
- * Used when the API already provides a QR image.
- */
-async function imageUrlToDataUrl(url: string): Promise<string | null> {
-  try {
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      console.warn("QR image could not be loaded:", response.status);
-      return null;
-    }
-
-    const blob = await response.blob();
-
-    return await new Promise((resolve) => {
-      const reader = new FileReader();
-
-      reader.onloadend = () => {
-        resolve(reader.result as string);
-      };
-
-      reader.onerror = () => {
-        resolve(null);
-      };
-
-      reader.readAsDataURL(blob);
-    });
-  } catch (error) {
-    console.error("QR image loading error:", error);
-    return null;
-  }
-}
-
-/**
- * Generate QR image from a UPI URL / QR data.
- */
-async function generateQrDataUrl(value: string): Promise<string | null> {
-  try {
-    if (!value) {
-      return null;
-    }
-
-    return await QRCode.toDataURL(value, {
-      errorCorrectionLevel: "M",
-      margin: 2,
-      width: 500,
-      type: "image/png",
-    });
-  } catch (error) {
-    console.error("QR generation error:", error);
-    return null;
-  }
-}
-
-/**
- * Find QR/payment information from the bill object.
- *
- * Supports several possible field names so the PDF will work
- * with the existing API without forcing a database change.
- */
-function getQrValue(bill: any): string | null {
-  const possibleValues = [
-    bill.upi_url,
-    bill.upi_link,
-    bill.upi_uri,
-    bill.upi_string,
-    bill.qr_data,
-    bill.qr_text,
-    bill.payment_url,
-    bill.payment_link,
-  ];
-
-  for (const value of possibleValues) {
-    if (value && typeof value === "string") {
-      return value.trim();
-    }
-  }
-
-  return null;
-}
-
-/**
- * Find an existing QR image URL.
- */
-function getQrImageUrl(bill: any): string | null {
-  const possibleValues = [
-    bill.qr_code,
-    bill.qr_image,
-    bill.qr_image_url,
-    bill.qrcode,
-    bill.qr_url,
-  ];
-
-  for (const value of possibleValues) {
-    if (value && typeof value === "string") {
-      const trimmed = value.trim();
-
-      // Don't treat UPI strings as image URLs.
-      if (
-        trimmed.startsWith("upi://") ||
-        trimmed.startsWith("upi%3A") ||
-        (trimmed.startsWith("http://") === false &&
-          trimmed.startsWith("https://") === false &&
-          trimmed.startsWith("data:image/") === false)
-      ) {
-        continue;
-      }
-
-      return trimmed;
-    }
-  }
-
-  return null;
-}
-
 export async function generateBillPdf(data: any) {
-  const bill = data.bill;
-  const details = data.details ?? [];
-  const funds = data.funds ?? [];
+  const bill = data?.bill ?? {};
+  const details = data?.details ?? [];
+  const funds = data?.funds ?? [];
 
   const doc = new jsPDF("p", "mm", "a4");
 
@@ -179,12 +63,20 @@ export async function generateBillPdf(data: any) {
   y += 6;
 
   const addressLines = [bill.address1, bill.address2, bill.address3].filter(
-    Boolean,
+    (value) =>
+      value !== null &&
+      value !== undefined &&
+      String(value).trim() !== "" &&
+      String(value).toLowerCase() !== "null",
   );
 
-  doc.text(addressLines.length > 0 ? addressLines.join("\n") : "-", 20, y);
+  if (addressLines.length > 0) {
+    doc.text(addressLines.map((value) => String(value)).join("\n"), 20, y);
+  } else {
+    doc.text("-", 20, y);
+  }
 
-  y += 22;
+  y += Math.max(15, addressLines.length * 5 + 8);
 
   // ============================================================
   // METER READING
@@ -306,6 +198,7 @@ export async function generateBillPdf(data: any) {
     didParseCell: function (hook) {
       if (hook.row.index === 6) {
         hook.cell.styles.fontStyle = "bold";
+
         hook.cell.styles.fontSize = 13;
       }
     },
@@ -315,86 +208,127 @@ export async function generateBillPdf(data: any) {
 
   // ============================================================
   // PAYMENT QR CODE
+  //
+  // SAME QR STRING USED BY THERMAL PRINTER:
+  //
+  // info.qr_string
+  //
   // ============================================================
 
-  let qrDataUrl: string | null = null;
+  const qrString = String(bill.qr_string ?? "").trim();
 
-  try {
-    /*
-     * First check whether the API already provides a QR IMAGE.
-     */
-    const qrImageUrl = getQrImageUrl(bill);
+  console.log("PDF QR STRING:", qrString);
 
-    if (qrImageUrl) {
-      if (qrImageUrl.startsWith("data:image/")) {
-        qrDataUrl = qrImageUrl;
-      } else {
-        qrDataUrl = await imageUrlToDataUrl(qrImageUrl);
+  if (qrString !== "") {
+    try {
+      /*
+       * Generate the SAME QR data used
+       * by the thermal printer.
+       */
+      const qrDataUrl = await QRCode.toDataURL(qrString, {
+        errorCorrectionLevel: "M",
+        type: "image/png",
+
+        /*
+         * High resolution image.
+         * jsPDF will resize it to 45mm.
+         */
+        width: 500,
+
+        /*
+         * Important quiet zone around QR.
+         */
+        margin: 4,
+
+        color: {
+          dark: "#000000",
+          light: "#ffffff",
+        },
+      });
+
+      /*
+       * Make sure there is enough space
+       * on the current page.
+       */
+      if (y > 225) {
+        doc.addPage();
+
+        y = 20;
       }
-    }
 
-    /*
-     * If there is no QR image, generate one from the UPI/payment data.
-     */
-    if (!qrDataUrl) {
-      const qrValue = getQrValue(bill);
+      // --------------------------------------------------------
+      // QR TITLE
+      // --------------------------------------------------------
 
-      if (qrValue) {
-        qrDataUrl = await generateQrDataUrl(qrValue);
-      }
-    }
-  } catch (error) {
-    console.error("QR processing failed:", error);
-  }
+      doc.setFont("helvetica", "bold");
 
-  // ============================================================
-  // QR DISPLAY
-  // ============================================================
+      doc.setFontSize(11);
 
-  if (qrDataUrl) {
-    /*
-     * Keep enough space for QR + payment information.
-     */
-    if (y > 235) {
-      doc.addPage();
-      y = 20;
-    }
-
-    const qrSize = 42;
-
-    const qrX = 84;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-
-    doc.text("SCAN TO PAY", 105, y, {
-      align: "center",
-    });
-
-    y += 4;
-
-    doc.addImage(qrDataUrl, "PNG", qrX, y, qrSize, qrSize);
-
-    y += qrSize + 6;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-
-    const upiValue = bill.upi_id ?? bill.upi ?? bill.upi_vpa ?? "";
-
-    if (upiValue) {
-      doc.text(`UPI: ${upiValue}`, 105, y, {
+      doc.text("SCAN & PAY USING UPI", 105, y, {
         align: "center",
       });
 
       y += 5;
+
+      // --------------------------------------------------------
+      // QR IMAGE
+      // --------------------------------------------------------
+
+      const qrSize = 45;
+
+      const qrX = (210 - qrSize) / 2;
+
+      doc.addImage(qrDataUrl, "PNG", qrX, y, qrSize, qrSize);
+
+      y += qrSize + 6;
+
+      // --------------------------------------------------------
+      // PAYMENT INFORMATION
+      // --------------------------------------------------------
+
+      doc.setFont("helvetica", "normal");
+
+      doc.setFontSize(9);
+
+      /*
+       * Show UPI ID if available.
+       */
+      const upiId = bill.upi_id ?? bill.upi ?? bill.upi_vpa ?? "";
+
+      if (upiId && String(upiId).trim() !== "") {
+        doc.text(`UPI: ${String(upiId).trim()}`, 105, y, {
+          align: "center",
+        });
+
+        y += 5;
+      }
+
+      doc.text(`Amount: Rs. ${format(bill.total_amount)}`, 105, y, {
+        align: "center",
+      });
+
+      y += 8;
+
+      console.log("QR code successfully added to PDF.");
+    } catch (qrError) {
+      /*
+       * Do not fail the complete bill PDF
+       * if QR generation has a problem.
+       */
+      console.error("PDF QR generation failed:", qrError);
+
+      doc.setFont("helvetica", "normal");
+
+      doc.setFontSize(9);
+
+      doc.text("UPI QR code could not be generated.", 105, y, {
+        align: "center",
+      });
+
+      y += 8;
     }
-
-    doc.text(`Amount: Rs. ${format(bill.total_amount)}`, 105, y, {
-      align: "center",
-    });
-
-    y += 10;
+  } else {
+    console.warn("No qr_string found in bill data.");
   }
 
   // ============================================================
@@ -402,6 +336,7 @@ export async function generateBillPdf(data: any) {
   // ============================================================
 
   doc.setFont("helvetica", "bold");
+
   doc.setFontSize(10);
 
   doc.text(`Due Date : ${bill.due_date ?? ""}`, 14, y);
@@ -413,6 +348,7 @@ export async function generateBillPdf(data: any) {
   // ============================================================
 
   doc.setFont("helvetica", "normal");
+
   doc.setFontSize(10);
 
   doc.text("Thank you for using Gramasira Water Supply", 105, y, {
