@@ -421,6 +421,74 @@ class PrinterService {
   }
 
   /* =========================================================
+     DATE FORMAT
+     Always print dates as DD/MM/YYYY.
+     Handles MySQL, ISO, slash and day-first date strings.
+  ========================================================= */
+
+  private formatDate(value: any): string {
+    if (value === null || value === undefined || value === "") return "";
+
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) return "";
+      const dd = String(value.getDate()).padStart(2, "0");
+      const mm = String(value.getMonth() + 1).padStart(2, "0");
+      const yyyy = String(value.getFullYear());
+      return `${dd}/${mm}/${yyyy}`;
+    }
+
+    const input = String(value).trim();
+    let match = input.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (match) {
+      const [, year, month, day] = match;
+      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+    }
+
+    match = input.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+    if (match) {
+      const [, year, month, day] = match;
+      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+    }
+
+    match = input.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2}|\d{4})(?:\s|$)/);
+    if (match) {
+      const [, day, month, year] = match;
+      const fullYear = year.length === 2 ? `20${year}` : year;
+      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${fullYear}`;
+    }
+
+    console.warn("Printer date could not be parsed; original value retained:", value);
+    return input;
+  }
+
+  /* =========================================================
+     FORMAT BILL MONTH
+
+     Converts an API value such as 2026-11-01 to November 2026.
+  ========================================================= */
+
+  private formatBillMonth(value: any): string {
+    if (value === null || value === undefined || value === "") return "";
+
+    const input = String(value).trim();
+    const match = input.match(/^(\d{4})[-/](\d{1,2})(?:[-/]\d{1,2})?/);
+
+    if (match) {
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      if (month >= 1 && month <= 12) {
+        const monthName = [
+          "January", "February", "March", "April", "May", "June",
+          "July", "August", "September", "October", "November", "December",
+        ][month - 1];
+        return `${monthName} ${year}`;
+      }
+    }
+
+    return input;
+  }
+
+  /* =========================================================
      ESC/POS QR CODE
      
      Uses:
@@ -662,6 +730,22 @@ class PrinterService {
 
     const funds = bill?.funds ?? [];
 
+    // Format dates again inside the printer service. This protects the
+    // thermal output even if another screen calls printBill with raw API data.
+    const dueDate = this.formatDate(info.due_date ?? info.dueDate);
+    const createdDate = this.formatDate(info.created_at ?? info.createdAt);
+    const paymentDate = this.formatDate(info.payment_date ?? info.paymentDate);
+    const billMonth = this.formatBillMonth(info.bill_month ?? info.billMonth);
+
+    console.log("THERMAL PRINTER DATE CHECK:", {
+      rawDueDate: info.due_date ?? info.dueDate,
+      formattedDueDate: dueDate,
+      rawCreatedDate: info.created_at ?? info.createdAt,
+      formattedCreatedDate: createdDate,
+      rawPaymentDate: info.payment_date ?? info.paymentDate,
+      formattedPaymentDate: paymentDate,
+    });
+
     console.log("Starting thermal print...");
 
     console.log("Bill information:", info);
@@ -708,7 +792,7 @@ class PrinterService {
 
     await this.write(`Name      : ${info.customer_name ?? ""}\n`);
 
-    await this.write(`Month     : ${info.bill_month ?? ""}\n`);
+    await this.write(`Month     : ${billMonth}\n`);
 
     await this.write("--------------------------------\n");
 
@@ -826,14 +910,18 @@ class PrinterService {
       await this.command(this.commands.LEFT);
     }
 
-    await this.write(`Due Date : ${info.due_date ?? ""}\n`);
+    await this.write(`Due Date : ${dueDate}\n`);
+
+    if (createdDate) {
+      await this.write(`Created  : ${createdDate}\n`);
+    }
 
     /*
      * Payment date if available.
      */
 
-    if (info.payment_date) {
-      await this.write(`Paid Date : ${info.payment_date}\n`);
+    if (paymentDate) {
+      await this.write(`Paid Date : ${paymentDate}\n`);
     }
 
     await this.write("--------------------------------\n");

@@ -198,14 +198,12 @@ export default function BillingPage() {
 
       alert("Receipt sent to thermal printer.");
     } catch (error: any) {
-      console.error("================================");
-
+     
       console.error("THERMAL PRINT ERROR");
 
       console.error(error);
 
-      console.error("================================");
-
+     
       /* -------------------------------------------------------
          User cancelled Bluetooth pairing
       ------------------------------------------------------- */

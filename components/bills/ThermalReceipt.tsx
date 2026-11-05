@@ -15,6 +15,17 @@ export default function ThermalReceipt({ bill }: Props) {
   const funds = bill?.funds ?? [];
 
   /* =========================================================
+     CONSUMER NUMBER
+  ========================================================= */
+
+  const consumerNo =
+    info.consumer_no ||
+    info.consumer_number ||
+    info.customer?.consumer_no ||
+    info.customer?.consumer_number ||
+    "";
+
+  /* =========================================================
      FORMAT NUMBER
   ========================================================= */
 
@@ -26,74 +37,119 @@ export default function ThermalReceipt({ bill }: Props) {
 
   /* =========================================================
      FORMAT DATE
-     
-     Due Date:
-        dd/mm/yyyy
 
-     Created Date:
-        dd/mm/yy
+     Output: DD/MM/YYYY
+
+     Supports:
+     YYYY-MM-DD
+     YYYY-MM-DD HH:mm:ss
+     YYYY-MM-DDTHH:mm:ss
+     YYYY/MM/DD
+     DD-MM-YYYY
+     DD/MM/YYYY
   ========================================================= */
 
-  const formatDate = (value: any, shortYear = false) => {
-    if (!value) return "";
+  const formatDate = (value: any): string => {
+    if (value === null || value === undefined || value === "") return "";
 
-    /*
-     * Handle common MySQL datetime format:
-     * YYYY-MM-DD HH:mm:ss
-     *
-     * Also handles:
-     * YYYY-MM-DD
-     */
-
-    const valueString = String(value).trim();
-
-    let date: Date;
-
-    /*
-     * MySQL date/datetime
-     */
-    if (/^\d{4}-\d{2}-\d{2}/.test(valueString)) {
-      const parts = valueString.split(/[- :T]/);
-
-      const year = Number(parts[0]);
-      const month = Number(parts[1]);
-      const day = Number(parts[2]);
-
-      /*
-       * Use local date construction so timezone conversion
-       * does not accidentally change the displayed date.
-       */
-      date = new Date(year, month - 1, day);
-    } else {
-      date = new Date(valueString);
+    // Date objects: use local date parts to avoid UTC day shifts.
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) return "";
+      const dd = String(value.getDate()).padStart(2, "0");
+      const mm = String(value.getMonth() + 1).padStart(2, "0");
+      const yyyy = String(value.getFullYear());
+      return `${dd}/${mm}/${yyyy}`;
     }
 
-    if (isNaN(date.getTime())) {
-      return valueString;
+    const dateString = String(value).trim();
+
+    // MySQL / ISO: YYYY-MM-DD, YYYY-MM-DD HH:mm:ss, YYYY-MM-DDTHH:mm:ss...
+    let match = dateString.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (match) {
+      const [, year, month, day] = match;
+      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
     }
 
-    const day = String(date.getDate()).padStart(2, "0");
+    // YYYY/MM/DD (optional time after date)
+    match = dateString.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+    if (match) {
+      const [, year, month, day] = match;
+      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+    }
 
-    const month = String(date.getMonth() + 1).padStart(2, "0");
+    // DD/MM/YYYY, DD-MM-YYYY, DD/MM/YY, DD-MM-YY
+    match = dateString.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2}|\d{4})(?:\s|$)/);
+    if (match) {
+      const [, day, month, year] = match;
+      const fullYear = year.length === 2 ? `20${year}` : year;
+      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${fullYear}`;
+    }
 
-    const year = shortYear
-      ? String(date.getFullYear()).slice(-2)
-      : String(date.getFullYear());
-
-    return `${day}/${month}/${year}`;
+    console.warn("Receipt date could not be parsed; original value retained:", value);
+    return dateString;
   };
+
+    
+  /* =========================================================
+     FORMAT BILL MONTH
+
+     API may return bill_month as YYYY-MM-DD (for example,
+     2026-11-01). Show only the billing month and year.
+     Output example: November 2026.
+  ========================================================= */
+
+  const formatBillMonth = (value: any): string => {
+    if (value === null || value === undefined || value === "") return "";
+
+    const input = String(value).trim();
+    const match = input.match(/^(\d{4})[-/](\d{1,2})(?:[-/]\d{1,2})?/);
+
+    if (match) {
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      if (month >= 1 && month <= 12) {
+        return `${new Date(year, month - 1, 1).toLocaleString("en-IN", { month: "long" })} ${year}`;
+      }
+    }
+
+    return input;
+  };
+
+  const billMonth = formatBillMonth(info.bill_month ?? info.billMonth);
+
+  /* =========================================================
+     FORMATTED DATES
+
+     Both Browser Print and Thermal Print use these values.
+  ========================================================= */
+
+  const dueDate = formatDate(info.due_date ?? info.dueDate);
+  const createdDate = formatDate(info.created_at ?? info.createdAt);
+
+  /* =========================================================
+     DATE DEBUGGING
+  ========================================================= */
+
+  console.log("========== RECEIPT DATE DEBUG ==========");
+  console.log("RAW DUE DATE:", info.due_date ?? info.dueDate);
+  console.log("FORMATTED DUE DATE:", dueDate);
+  console.log("RAW CREATED DATE:", info.created_at ?? info.createdAt);
+  console.log("FORMATTED CREATED DATE:", createdDate);
+  console.log("=========================================");
 
   /* =========================================================
      BUILD PRINT DATA
   ========================================================= */
 
   const buildPrintData = () => {
-    return {
+    const printData = {
       bill: {
         bill_no: info.bill_no ?? "",
-        consumer_no: info.consumer_no ?? "",
+
+        consumer_no: consumerNo,
+
         customer_name: info.customer_name ?? "",
-        bill_month: info.bill_month ?? "",
+        bill_month: billMonth,
 
         previous_reading: info.previous_reading ?? 0,
         current_reading: info.current_reading ?? 0,
@@ -108,15 +164,10 @@ export default function ThermalReceipt({ bill }: Props) {
 
         total_amount: info.total_amount ?? 0,
 
-        /*
-         * Due Date -> dd/mm/yyyy
-         */
-        due_date: formatDate(info.due_date),
-
-        /*
-         * Created Date -> dd/mm/yy
-         */
-        created_at: formatDate(info.created_at, true),
+        // Already formatted as DD/MM/YYYY
+        due_date: dueDate,
+        created_at: createdDate,
+        payment_date: formatDate(info.payment_date ?? info.paymentDate),
 
         qr_string: info.qr_string ?? "",
       },
@@ -134,21 +185,22 @@ export default function ThermalReceipt({ bill }: Props) {
         amount: item.amount ?? 0,
       })),
     };
+
+    console.log("========== COMPLETE PRINT DATA ==========");
+    console.log("DUE DATE SENT:", printData.bill.due_date);
+    console.log("CREATED DATE SENT:", printData.bill.created_at);
+    console.log("PRINT DATA:", printData);
+    console.log("==========================================");
+
+    return printData;
   };
 
   /* =========================================================
      THERMAL PRINT
-
-     Clicking this button directly opens Bluetooth pairing
-     if printer is not already connected.
   ========================================================= */
 
   const handleThermalPrint = async () => {
     try {
-      /* -------------------------------------------------------
-         Check Web Bluetooth
-      ------------------------------------------------------- */
-
       if (!printerService.isSupported()) {
         alert(
           "Web Bluetooth is not supported in this browser.\n\n" +
@@ -158,26 +210,11 @@ export default function ThermalReceipt({ bill }: Props) {
         return;
       }
 
-      /* -------------------------------------------------------
-         Prepare bill data
-      ------------------------------------------------------- */
-
       const printData = buildPrintData();
 
-      console.log("================================");
-      console.log("THERMAL PRINT");
-      console.log("PRINT DATA:", printData);
-      console.log("================================");
-
-      /* -------------------------------------------------------
-         Connect automatically
-
-         If printer is already connected:
-             no pairing dialog
-
-         If printer is NOT connected:
-             Bluetooth pairing dialog opens
-      ------------------------------------------------------- */
+      console.log("THERMAL PRINT DATE CHECK");
+      console.log("Due Date:", printData.bill.due_date);
+      console.log("Created Date:", printData.bill.created_at);
 
       if (!printerService.isConnected()) {
         console.log("Printer not connected.");
@@ -186,17 +223,9 @@ export default function ThermalReceipt({ bill }: Props) {
         await printerService.connect();
       }
 
-      /* -------------------------------------------------------
-         Check connection
-      ------------------------------------------------------- */
-
       if (!printerService.isConnected()) {
         throw new Error("Printer connection failed.");
       }
-
-      /* -------------------------------------------------------
-         Print
-      ------------------------------------------------------- */
 
       console.log("Sending receipt to printer...");
 
@@ -206,14 +235,7 @@ export default function ThermalReceipt({ bill }: Props) {
 
       alert("Receipt sent to thermal printer.");
     } catch (error: any) {
-      console.error("================================");
-      console.error("THERMAL PRINT ERROR");
-      console.error(error);
-      console.error("================================");
-
-      /* -------------------------------------------------------
-         User cancelled Bluetooth pairing
-      ------------------------------------------------------- */
+      console.error("THERMAL PRINT ERROR:", error);
 
       if (
         error?.name === "NotFoundError" ||
@@ -234,11 +256,16 @@ export default function ThermalReceipt({ bill }: Props) {
   ========================================================= */
 
   const handleBrowserPrint = () => {
+    console.log("========== BROWSER PRINT DATE CHECK ==========");
+    console.log("Due Date:", dueDate);
+    console.log("Created Date:", createdDate);
+    console.log("===============================================");
+
     window.print();
   };
 
   /* =========================================================
-     RENDER
+     RENDER RECEIPT
   ========================================================= */
 
   return (
@@ -265,9 +292,7 @@ export default function ThermalReceipt({ bill }: Props) {
           print:rounded-none
         "
       >
-        {/* =====================================================
-            HEADER
-        ===================================================== */}
+        {/* HEADER */}
 
         <div
           className="
@@ -294,41 +319,38 @@ export default function ThermalReceipt({ bill }: Props) {
           </div>
         </div>
 
-        {/* =====================================================
-            BILL DETAILS
-        ===================================================== */}
+        {/* BILL DETAILS */}
 
         <div className="p-4 text-sm space-y-2">
           <div className="flex justify-between gap-3">
             <span>Bill No</span>
-
-            <strong>{info.bill_no}</strong>
+            <strong>{info.bill_no || ""}</strong>
           </div>
 
           <div className="flex justify-between gap-3">
-            <span>Consumer</span>
+            <span>Consumer Number</span>
 
-            <strong>{info.consumer_no}</strong>
+            <strong className="text-right">
+              {consumerNo || "Not Available"}
+            </strong>
           </div>
 
           <div className="flex justify-between gap-3">
             <span>Name</span>
 
-            <strong className="text-right">{info.customer_name}</strong>
+            <strong className="text-right">{info.customer_name || ""}</strong>
           </div>
 
           <div className="flex justify-between gap-3">
             <span>Month</span>
 
-            <strong>{info.bill_month}</strong>
+            <strong>{billMonth}</strong>
           </div>
         </div>
 
         <div className="border-t border-dashed" />
 
-        {/* =====================================================
-            METER READING
-        ===================================================== */}
+        {/* METER READING */}
 
         <div className="p-4">
           <div className="font-bold mb-3">Meter Reading</div>
@@ -356,30 +378,20 @@ export default function ThermalReceipt({ bill }: Props) {
 
         <div className="border-t border-dashed" />
 
-        {/* =====================================================
-            SLAB DETAILS
-        ===================================================== */}
+        {/* SLAB DETAILS */}
 
         <div className="p-4">
           <div className="font-bold mb-3">Consumption Charges</div>
 
           {details.map((item: any, index: number) => (
-            <div
-              key={index}
-              className="
-                mb-2
-                border-b
-                border-dashed
-                pb-2
-              "
-            >
+            <div key={index} className="mb-2 border-b border-dashed pb-2">
               <div className="text-xs text-gray-500">
                 {item.slab_from}-{item.slab_to} Litres
               </div>
 
               <div className="flex justify-between">
                 <span>
-                  {format(item.units)}× ₹{format(item.rate)}
+                  {format(item.units)} × ₹{format(item.rate)}
                 </span>
 
                 <b>₹{format(item.amount)}</b>
@@ -388,29 +400,14 @@ export default function ThermalReceipt({ bill }: Props) {
           ))}
         </div>
 
-        {/* =====================================================
-            FUNDS
-        ===================================================== */}
+        {/* ADDITIONAL FUNDS */}
 
         {funds.length > 0 && (
-          <div
-            className="
-              p-4
-              border-t
-              border-dashed
-            "
-          >
+          <div className="p-4 border-t border-dashed">
             <b>Additional Funds</b>
 
             {funds.map((item: any, index: number) => (
-              <div
-                key={index}
-                className="
-                  flex
-                  justify-between
-                  mt-2
-                "
-              >
+              <div key={index} className="flex justify-between mt-2 gap-3">
                 <span>{item.fund_name}</span>
 
                 <b>₹{format(item.amount)}</b>
@@ -421,9 +418,7 @@ export default function ThermalReceipt({ bill }: Props) {
 
         <div className="border-t border-dashed" />
 
-        {/* =====================================================
-            CHARGES
-        ===================================================== */}
+        {/* CHARGES */}
 
         <div className="p-4 space-y-2">
           {[
@@ -434,14 +429,7 @@ export default function ThermalReceipt({ bill }: Props) {
             ["Penalty", info.penalty],
             ["Discount", info.discount],
           ].map((row: any, index: number) => (
-            <div
-              key={index}
-              className="
-                flex
-                justify-between
-                gap-3
-              "
-            >
+            <div key={index} className="flex justify-between gap-3">
               <span>{row[0]}</span>
 
               <b>₹{format(row[1])}</b>
@@ -451,9 +439,7 @@ export default function ThermalReceipt({ bill }: Props) {
 
         <div className="border-t-2 border-black" />
 
-        {/* =====================================================
-            TOTAL
-        ===================================================== */}
+        {/* TOTAL */}
 
         <div className="p-5">
           <div
@@ -470,27 +456,43 @@ export default function ThermalReceipt({ bill }: Props) {
             <span>₹{format(info.total_amount)}</span>
           </div>
 
-          {/* =================================================
-              DATE INFORMATION
+          {/* DATE INFORMATION */}
 
-              Due Date  -> dd/mm/yyyy
-              Created   -> dd/mm/yy
-          ================================================= */}
+          <div className="text-xs mt-3">Due Date : {dueDate}</div>
 
-          <div className="text-xs mt-2">
-            Due Date : {formatDate(info.due_date)}
-          </div>
+          <div className="text-xs mt-1">Created : {createdDate}</div>
 
-          <div className="text-xs mt-1">
-            Created : {formatDate(info.created_at, true)}
+          {/* TEMPORARY DATE DEBUG PANEL */}
+
+          <div
+            className="
+              mt-3
+              p-2
+              border
+              border-red-500
+              bg-yellow-50
+              text-black
+              text-[10px]
+              break-all
+              print:hidden
+            "
+          >
+            <strong>DATE DEBUG INFORMATION</strong>
+
+            <div>Raw Due Date: {String(info.due_date ?? info.dueDate ?? "NULL")}</div>
+
+            <div>Formatted Due Date: {dueDate}</div>
+
+            <div>Raw Created Date: {String(info.created_at ?? info.createdAt ?? "NULL")}</div>
+
+            <div>Formatted Created Date: {createdDate}</div>
+            <div>Formatted Payment Date: {formatDate(info.payment_date ?? info.paymentDate)}</div>
           </div>
         </div>
 
         <div className="border-t border-dashed" />
 
-        {/* =====================================================
-            QR CODE
-        ===================================================== */}
+        {/* QR CODE */}
 
         <div className="p-5 text-center">
           <div className="flex justify-center">
@@ -502,30 +504,16 @@ export default function ThermalReceipt({ bill }: Props) {
 
         <div className="border-t border-dashed" />
 
-        {/* =====================================================
-            FOOTER
-        ===================================================== */}
+        {/* FOOTER */}
 
         <div className="p-5 text-center">
           <div>Thank You</div>
 
           <b>Gramasira Water Supply</b>
 
-          {/* =================================================
-              PRINT BUTTONS
-          ================================================= */}
+          {/* PRINT BUTTONS */}
 
-          <div
-            className="
-              mt-5
-              space-y-3
-              print:hidden
-            "
-          >
-            {/* =================================================
-                BROWSER PRINT
-            ================================================= */}
-
+          <div className="mt-5 space-y-3 print:hidden">
             <button
               type="button"
               onClick={handleBrowserPrint}
@@ -541,10 +529,6 @@ export default function ThermalReceipt({ bill }: Props) {
             >
               🖨 Browser Print
             </button>
-
-            {/* =================================================
-                DIRECT THERMAL PRINT
-            ================================================= */}
 
             <button
               type="button"
