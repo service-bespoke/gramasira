@@ -655,12 +655,16 @@ export default function OutstandingPage() {
           BILL DETAILS MODAL
       ===================================================== */}
 
-      {selectedBill && !showPayment && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[2rem] bg-white shadow-2xl sm:max-w-xl sm:rounded-[2rem]">
-            {/* HEADER */}
+      {/* =====================================================
+          BILL DETAILS MODAL - MOBILE FIX
+      ===================================================== */}
 
-            <div className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur">
+      {selectedBill && !showPayment && (
+        <div className="fixed inset-0 z-[99999] flex items-end justify-center bg-slate-900/60 p-2 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="flex max-h-[calc(100dvh-1rem)] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-w-xl sm:rounded-[2rem]">
+            {/* HEADER - FIXED */}
+
+            <div className="shrink-0 border-b border-slate-100 bg-white px-5 py-4">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -682,7 +686,9 @@ export default function OutstandingPage() {
               </div>
             </div>
 
-            <div className="space-y-5 p-5">
+            {/* SCROLLABLE CONTENT */}
+
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-5">
               {/* CUSTOMER */}
 
               <div className="rounded-2xl bg-slate-50 p-4">
@@ -778,28 +784,19 @@ export default function OutstandingPage() {
                   Due date: {date(selectedBill.due_date)}
                 </div>
               </div>
+            </div>
 
-              {/* ACTIONS */}
+            {/* FIXED ACTION FOOTER - ALWAYS VISIBLE */}
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {/* <button
-                  type="button"
-                  onClick={editBill}
-                  className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 font-semibold text-blue-700 transition hover:bg-blue-100"
-                >
-                  <i className="bi bi-pencil-square mr-2" />
-                  Modify Bill
-                </button> */}
-
-                <button
-                  type="button"
-                  onClick={receivePayment}
-                  className="rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 px-4 py-3 font-semibold text-white shadow-lg"
-                >
-                  <i className="bi bi-cash-coin mr-2" />
-                  Receive Payment
-                </button>
-              </div>
+            <div className="shrink-0 border-t border-slate-100 bg-white px-5 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+              <button
+                type="button"
+                onClick={receivePayment}
+                className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 px-4 py-4 font-bold text-white shadow-lg active:scale-[0.98]"
+              >
+                <i className="bi bi-cash-coin mr-2" />
+                Receive Payment
+              </button>
             </div>
           </div>
         </div>
