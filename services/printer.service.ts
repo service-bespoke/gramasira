@@ -975,11 +975,11 @@ class PrinterService {
       await this.command(this.commands.LEFT);
     }
 
-    await this.write(`Due Date : ${dueDate}\n`);
+    // await this.write(`Due Date : ${dueDate}\n`);
 
-    if (createdDate) {
-      await this.write(`Created  : ${createdDate}\n`);
-    }
+    // if (createdDate) {
+    //   await this.write(`Created  : ${createdDate}\n`);
+    // }
 
     /*
      * Payment date if available.
