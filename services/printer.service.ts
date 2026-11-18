@@ -918,11 +918,46 @@ class PrinterService {
 
     await this.command(this.commands.DOUBLE_SIZE);
 
+    // await this.write(`TOTAL: Rs ${this.money(info.total_amount)}\n`);
+
+    // await this.command(this.commands.NORMAL_SIZE);
+
+    // await this.command(this.commands.BOLD_OFF);
+
     await this.write(`TOTAL: Rs ${this.money(info.total_amount)}\n`);
 
     await this.command(this.commands.NORMAL_SIZE);
 
     await this.command(this.commands.BOLD_OFF);
+
+    /* =======================================================
+   LATE PAYMENT NOTE
+======================================================= */
+
+    const currentAmount = Number(info.total_amount ?? 0);
+    const lateFee = 15;
+    const lateTotal = currentAmount + lateFee;
+
+    await this.write("--------------------------------\n");
+
+    await this.command(this.commands.BOLD_ON);
+
+    await this.write("IMPORTANT NOTE\n");
+
+    await this.command(this.commands.BOLD_OFF);
+
+    // await this.write("Payment after 5 days from due date\n");
+    // await this.write("will attract an additional late fee.\n");
+
+    await this.write(`Late Fee      : Rs ${this.money(lateFee)}\n`);
+
+    await this.command(this.commands.BOLD_ON);
+
+    await this.write(`Late Total    : Rs ${this.money(lateTotal)}\n`);
+
+    await this.command(this.commands.BOLD_OFF);
+
+    await this.write("--------------------------------\n");
 
     /* =======================================================
        PAYMENT STATUS
