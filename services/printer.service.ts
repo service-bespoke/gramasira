@@ -924,36 +924,36 @@ class PrinterService {
 
     // await this.command(this.commands.BOLD_OFF);
 
-    await this.write(`TOTAL: Rs ${this.money(info.total_amount)}\n`);
-
-    await this.command(this.commands.NORMAL_SIZE);
-
-    await this.command(this.commands.BOLD_OFF);
-
     /* =======================================================
-   LATE PAYMENT NOTE
+   PAYMENT PENALTY INFORMATION
 ======================================================= */
 
-    const currentAmount = Number(info.total_amount ?? 0);
-    const lateFee = 15;
-    const lateTotal = currentAmount + lateFee;
+    const billAmount = Number(
+      info.bill_amount ??
+        Number(info.total_amount ?? 0) - Number(info.penalty ?? 0),
+    );
+
+    const penaltyAmount = Number(info.penalty ?? 0);
+
+    const payableAmount = billAmount + penaltyAmount;
 
     await this.write("--------------------------------\n");
 
     await this.command(this.commands.BOLD_ON);
-
-    await this.write("IMPORTANT NOTE\n");
-
+    await this.write("IMPORTANT PAYMENT NOTE\n");
     await this.command(this.commands.BOLD_OFF);
 
-    // await this.write("Payment after 5 days from due date\n");
-    // await this.write("will attract an additional late fee.\n");
+    if (dueDate) {
+      await this.write(`If paid after ${dueDate},\n`);
+    }
 
-    await this.write(`Late Fee      : Rs ${this.money(lateFee)}\n`);
+    await this.write(`Bill Amount : Rs ${this.money(billAmount)}\n`);
+
+    await this.write(`Fine        : Rs ${this.money(penaltyAmount)}\n`);
 
     await this.command(this.commands.BOLD_ON);
 
-    await this.write(`Late Total    : Rs ${this.money(lateTotal)}\n`);
+    await this.write(`Total       : Rs ${this.money(payableAmount)}\n`);
 
     await this.command(this.commands.BOLD_OFF);
 
