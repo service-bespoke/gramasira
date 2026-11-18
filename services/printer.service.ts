@@ -457,7 +457,10 @@ class PrinterService {
       return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${fullYear}`;
     }
 
-    console.warn("Printer date could not be parsed; original value retained:", value);
+    console.warn(
+      "Printer date could not be parsed; original value retained:",
+      value,
+    );
     return input;
   }
 
@@ -478,8 +481,18 @@ class PrinterService {
       const month = Number(match[2]);
       if (month >= 1 && month <= 12) {
         const monthName = [
-          "January", "February", "March", "April", "May", "June",
-          "July", "August", "September", "October", "November", "December",
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
         ][month - 1];
         return `${monthName} ${year}`;
       }
@@ -783,6 +796,9 @@ class PrinterService {
     /* =======================================================
        BILL DETAILS
     ======================================================= */
+    /* =======================================================
+   BILL DETAILS
+======================================================= */
 
     await this.command(this.commands.LEFT);
 
@@ -791,6 +807,20 @@ class PrinterService {
     await this.write(`Consumer  : ${info.consumer_no ?? ""}\n`);
 
     await this.write(`Name      : ${info.customer_name ?? ""}\n`);
+
+    /* DATES IMMEDIATELY AFTER CUSTOMER NAME */
+
+    if (dueDate) {
+      await this.write(`Due Date  : ${dueDate}\n`);
+    }
+
+    if (createdDate) {
+      await this.write(`Created   : ${createdDate}\n`);
+    }
+
+    if (paymentDate) {
+      await this.write(`Paid Date : ${paymentDate}\n`);
+    }
 
     await this.write(`Month     : ${billMonth}\n`);
 
