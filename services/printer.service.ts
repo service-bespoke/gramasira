@@ -3,25 +3,35 @@
 import QRCode from "qrcode";
 
 /* =========================================================
+
    PRINTER SERVICE
+
    Web Bluetooth BLE Thermal Printer
+
    ========================================================= */
 
 class PrinterService {
   private device: any = null;
+
   private characteristic: any = null;
+
   private service: any = null;
 
   private serviceUuid: string | null = null;
+
   private characteristicUuid: string | null = null;
 
   /* =========================================================
+
      COMMON BLE THERMAL PRINTER UUIDS
+
   ========================================================= */
 
   private readonly SERVICE_UUIDS = [
     "0000ffe0-0000-1000-8000-00805f9b34fb",
+
     "000018f0-0000-1000-8000-00805f9b34fb",
+
     "0000ff00-0000-1000-8000-00805f9b34fb",
 
     "49535343-fe7d-4ae5-8fa9-9fafd205e455",
@@ -33,14 +43,18 @@ class PrinterService {
     "00002af1-0000-1000-8000-00805f9b34fb",
 
     "0000ff01-0000-1000-8000-00805f9b34fb",
+
     "0000ff02-0000-1000-8000-00805f9b34fb",
 
     "49535343-8841-43f4-a8d4-ecbe34729bb3",
+
     "49535343-1e4d-4bd9-ba61-23c647249616",
   ];
 
   /* =========================================================
+
      WEB BLUETOOTH SUPPORT
+
   ========================================================= */
 
   isSupported(): boolean {
@@ -48,7 +62,9 @@ class PrinterService {
   }
 
   /* =========================================================
+
      CONNECTION STATUS
+
   ========================================================= */
 
   isConnected(): boolean {
@@ -61,7 +77,9 @@ class PrinterService {
   }
 
   /* =========================================================
+
      CONNECT
+
   ========================================================= */
 
   async connect(): Promise<void> {
@@ -96,8 +114,11 @@ class PrinterService {
       console.log("Bluetooth printer disconnected.");
 
       this.characteristic = null;
+
       this.service = null;
+
       this.serviceUuid = null;
+
       this.characteristicUuid = null;
     });
 
@@ -136,17 +157,24 @@ class PrinterService {
   }
 
   /* =========================================================
+
      FIND WRITABLE CHARACTERISTIC
+
   ========================================================= */
 
   private async findWritableCharacteristic(server: any): Promise<void> {
     console.log("Searching printer BLE services...");
 
     /*
+
      * -------------------------------------------------------
+
      * FIRST:
+
      * Try known service + characteristic combinations
+
      * -------------------------------------------------------
+
      */
 
     for (const serviceUuid of this.SERVICE_UUIDS) {
@@ -179,13 +207,17 @@ class PrinterService {
             }
           } catch (error) {
             /*
+
              * UUID does not exist.
+
              */
           }
         }
 
         /*
+
          * Inspect all characteristics.
+
          */
 
         try {
@@ -196,8 +228,11 @@ class PrinterService {
           for (const characteristic of characteristics) {
             console.log(
               "Characteristic:",
+
               characteristic.uuid,
+
               "properties:",
+
               characteristic.properties,
             );
 
@@ -212,6 +247,7 @@ class PrinterService {
 
               console.log(
                 "Writable characteristic FOUND:",
+
                 characteristic.uuid,
               );
 
@@ -227,10 +263,15 @@ class PrinterService {
     }
 
     /*
+
      * -------------------------------------------------------
+
      * SECOND:
+
      * Discover all primary services.
+
      * -------------------------------------------------------
+
      */
 
     try {
@@ -249,7 +290,9 @@ class PrinterService {
           for (const characteristic of characteristics) {
             console.log(
               "Discovered characteristic:",
+
               characteristic.uuid,
+
               characteristic.properties,
             );
 
@@ -264,6 +307,7 @@ class PrinterService {
 
               console.log(
                 "Writable characteristic discovered:",
+
                 characteristic.uuid,
               );
 
@@ -286,7 +330,9 @@ class PrinterService {
   }
 
   /* =========================================================
+
      CHECK WRITABLE CHARACTERISTIC
+
   ========================================================= */
 
   private isWritableCharacteristic(characteristic: any): boolean {
@@ -300,7 +346,9 @@ class PrinterService {
   }
 
   /* =========================================================
+
      DISCONNECT
+
   ========================================================= */
 
   disconnect(): void {
@@ -315,17 +363,22 @@ class PrinterService {
     }
 
     this.device = null;
+
     this.characteristic = null;
+
     this.service = null;
 
     this.serviceUuid = null;
+
     this.characteristicUuid = null;
 
     console.log("Printer disconnected.");
   }
 
   /* =========================================================
+
      WRITE RAW BYTES
+
   ========================================================= */
 
   private async writeBytes(data: Uint8Array): Promise<void> {
@@ -334,7 +387,9 @@ class PrinterService {
     }
 
     /*
+
      * 20 bytes is safe for BLE thermal printers.
+
      */
 
     const CHUNK_SIZE = 20;
@@ -358,8 +413,11 @@ class PrinterService {
       }
 
       /*
+
        * Give printer time to process
+
        * every BLE packet.
+
        */
 
       await this.sleep(30);
@@ -367,7 +425,9 @@ class PrinterService {
   }
 
   /* =========================================================
+
      WRITE TEXT
+
   ========================================================= */
 
   async write(text: string): Promise<void> {
@@ -379,7 +439,9 @@ class PrinterService {
   }
 
   /* =========================================================
+
      ESC/POS COMMANDS
+
   ========================================================= */
 
   private commands = {
@@ -403,7 +465,9 @@ class PrinterService {
   };
 
   /* =========================================================
+
      SEND COMMAND
+
   ========================================================= */
 
   private async command(command: Uint8Array): Promise<void> {
@@ -411,7 +475,9 @@ class PrinterService {
   }
 
   /* =========================================================
+
      MONEY FORMAT
+
   ========================================================= */
 
   private money(value: any): string {
@@ -421,9 +487,13 @@ class PrinterService {
   }
 
   /* =========================================================
+
      DATE FORMAT
+
      Always print dates as DD/MM/YYYY.
+
      Handles MySQL, ISO, slash and day-first date strings.
+
   ========================================================= */
 
   private formatDate(value: any): string {
@@ -431,69 +501,100 @@ class PrinterService {
 
     if (value instanceof Date) {
       if (Number.isNaN(value.getTime())) return "";
+
       const dd = String(value.getDate()).padStart(2, "0");
+
       const mm = String(value.getMonth() + 1).padStart(2, "0");
+
       const yyyy = String(value.getFullYear());
+
       return `${dd}/${mm}/${yyyy}`;
     }
 
     const input = String(value).trim();
+
     let match = input.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+
     if (match) {
       const [, year, month, day] = match;
+
       return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
     }
 
     match = input.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+
     if (match) {
       const [, year, month, day] = match;
+
       return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
     }
 
     match = input.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2}|\d{4})(?:\s|$)/);
+
     if (match) {
       const [, day, month, year] = match;
+
       const fullYear = year.length === 2 ? `20${year}` : year;
+
       return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${fullYear}`;
     }
 
     console.warn(
       "Printer date could not be parsed; original value retained:",
+
       value,
     );
+
     return input;
   }
 
   /* =========================================================
+
      FORMAT BILL MONTH
 
      Converts an API value such as 2026-11-01 to November 2026.
+
   ========================================================= */
 
   private formatBillMonth(value: any): string {
     if (value === null || value === undefined || value === "") return "";
 
     const input = String(value).trim();
+
     const match = input.match(/^(\d{4})[-/](\d{1,2})(?:[-/]\d{1,2})?/);
 
     if (match) {
       const year = Number(match[1]);
+
       const month = Number(match[2]);
+
       if (month >= 1 && month <= 12) {
         const monthName = [
           "January",
+
           "February",
+
           "March",
+
           "April",
+
           "May",
+
           "June",
+
           "July",
+
           "August",
+
           "September",
+
           "October",
+
           "November",
+
           "December",
         ][month - 1];
+
         return `${monthName} ${year}`;
       }
     }
@@ -502,41 +603,125 @@ class PrinterService {
   }
 
   /* =========================================================
+     PARSE DATE AND ADD DAYS
+     Supports YYYY-MM-DD and DD/MM/YYYY values.
+  ========================================================= */
+
+  private parseDate(value: any): Date | null {
+    if (value === null || value === undefined || value === "") {
+      return null;
+    }
+
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime())
+        ? null
+        : new Date(value.getFullYear(), value.getMonth(), value.getDate());
+    }
+
+    const input = String(value).trim();
+    let match = input.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+
+    if (match) {
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      const date = new Date(year, month - 1, day);
+
+      if (
+        date.getFullYear() === year &&
+        date.getMonth() === month - 1 &&
+        date.getDate() === day
+      ) {
+        return date;
+      }
+
+      return null;
+    }
+
+    match = input.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2}|\d{4})(?:\s|$)/);
+
+    if (match) {
+      const day = Number(match[1]);
+      const month = Number(match[2]);
+      const yearText = match[3];
+      const year = Number(yearText.length === 2 ? `20${yearText}` : yearText);
+      const date = new Date(year, month - 1, day);
+
+      if (
+        date.getFullYear() === year &&
+        date.getMonth() === month - 1 &&
+        date.getDate() === day
+      ) {
+        return date;
+      }
+    }
+
+    return null;
+  }
+
+  private addDays(value: any, days: number): Date | null {
+    const date = this.parseDate(value);
+
+    if (!date) {
+      return null;
+    }
+
+    date.setDate(date.getDate() + days);
+    return date;
+  }
+
+  /* =========================================================
+
      ESC/POS QR CODE
-     
+
      Uses:
+
        GS ( k
 
      QR Model:
+
        Model 2
 
      Error correction:
+
        Level M
 
      Size:
+
        6
 
      This sends an actual QR code to the
+
      thermal printer instead of printing
+
      the UPI URL as text.
+
   ========================================================= */
 
   /* =========================================================
+
      QR CODE AS RASTER IMAGE
 
      IMPORTANT:
+
      Do NOT use the printer's native QR command here.
 
      Many inexpensive BLE thermal printers accept ESC/POS text
+
      and bitmap data but do NOT implement GS ( k QR commands.
 
      We therefore:
+
        1. Generate the QR in the browser with the qrcode package.
+
        2. Render it to a canvas.
+
        3. Convert canvas pixels to 1-bit ESC/POS bitmap data.
+
        4. Send the bitmap in small BLE packets.
 
      This prints the actual QR image instead of the UPI URL.
+
   ========================================================= */
 
   private async printQRCode(data: string): Promise<void> {
@@ -544,6 +729,7 @@ class PrinterService {
 
     if (!qrText) {
       console.log("QR data is empty.");
+
       return;
     }
 
@@ -554,48 +740,76 @@ class PrinterService {
     }
 
     /*
+
      * 58mm printers normally have 384 printable dots.
+
      * Keep the QR at 280 dots so it has a white margin around it.
+
      *
+
      * The canvas is square and includes a quiet zone.
+
      */
+
     const qrSize = 280;
 
     /*
+
      * Generate QR as a data URL.
+
      *
+
      * margin=4 is important for QR scanners.
+
      * errorCorrectionLevel=M gives a good balance between
+
      * reliability and physical QR size.
+
      */
+
     const dataUrl = await QRCode.toDataURL(qrText, {
       errorCorrectionLevel: "M",
+
       type: "image/png",
+
       width: qrSize,
+
       margin: 4,
+
       color: {
         dark: "#000000",
+
         light: "#ffffff",
       },
     });
 
     /*
+
      * Decode the generated PNG into an Image.
+
      */
+
     const image = new Image();
 
     await new Promise<void>((resolve, reject) => {
       image.onload = () => resolve();
+
       image.onerror = () =>
         reject(new Error("Could not decode generated QR image."));
+
       image.src = dataUrl;
     });
 
     /*
+
      * Draw to canvas.
+
      */
+
     const canvas = document.createElement("canvas");
+
     canvas.width = qrSize;
+
     canvas.height = qrSize;
 
     const ctx = canvas.getContext("2d", {
@@ -607,9 +821,13 @@ class PrinterService {
     }
 
     /*
+
      * Force a clean white background.
+
      */
+
     ctx.fillStyle = "#ffffff";
+
     ctx.fillRect(0, 0, qrSize, qrSize);
 
     ctx.drawImage(image, 0, 0, qrSize, qrSize);
@@ -617,16 +835,27 @@ class PrinterService {
     const imageData = ctx.getImageData(0, 0, qrSize, qrSize);
 
     /*
+
      * ESC/POS raster image command:
+
      *
+
      * GS v 0
+
      * 1D 76 30 00
+
      * xL xH yL yH
+
      * bitmap data
+
      *
+
      * One bit represents one horizontal dot.
+
      */
+
     const width = qrSize;
+
     const height = qrSize;
 
     const bytesPerRow = Math.ceil(width / 8);
@@ -634,14 +863,23 @@ class PrinterService {
     const bitmap = new Uint8Array(bytesPerRow * height);
 
     /*
+
      * Convert pixels to monochrome.
+
      *
+
      * QR black pixels become 1.
+
      * White pixels become 0.
+
      *
+
      * A threshold of 180 makes the conversion robust against
+
      * anti-aliased edges.
+
      */
+
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const pixelIndex = (y * width + x) * 4;
@@ -655,8 +893,11 @@ class PrinterService {
         const a = imageData.data[pixelIndex + 3];
 
         /*
+
          * Treat transparent pixels as white.
+
          */
+
         const gray = a === 0 ? 255 : 0.299 * r + 0.587 * g + 0.114 * b;
 
         if (gray < 180) {
@@ -670,63 +911,95 @@ class PrinterService {
     }
 
     /*
+
      * Build ESC/POS raster header.
+
      *
+
      * Width is measured in bytes.
+
      * Height is measured in dots.
+
      */
+
     const header = new Uint8Array([
       0x1d,
+
       0x76,
+
       0x30,
+
       0x00,
 
       bytesPerRow & 0xff,
+
       (bytesPerRow >> 8) & 0xff,
 
       height & 0xff,
+
       (height >> 8) & 0xff,
     ]);
 
     /*
+
      * Combine header + bitmap.
+
      */
+
     const output = new Uint8Array(header.length + bitmap.length);
 
     output.set(header, 0);
+
     output.set(bitmap, header.length);
 
     console.log("QR bitmap prepared:", {
       width,
+
       height,
+
       bytesPerRow,
+
       totalBytes: output.length,
     });
 
     /*
+
      * Send the bitmap.
+
      *
+
      * writeBytes() already breaks the data into 20-byte BLE
+
      * packets and waits between packets, which is important
+
      * for small BLE thermal printers.
+
      */
+
     await this.writeBytes(output);
 
     /*
+
      * Extra processing time for the printer's image buffer.
+
      */
+
     await this.sleep(500);
 
     console.log("QR bitmap sent to thermal printer.");
   }
 
   /* =========================================================
+
      PRINT BILL
+
   ========================================================= */
 
   async printBill(bill: any): Promise<void> {
     /*
+
      * Automatically connect if required.
+
      */
 
     if (!this.isConnected()) {
@@ -744,18 +1017,77 @@ class PrinterService {
     const funds = bill?.funds ?? [];
 
     // Format dates again inside the printer service. This protects the
+
     // thermal output even if another screen calls printBill with raw API data.
+
     const dueDate = this.formatDate(info.due_date ?? info.dueDate);
+
     const createdDate = this.formatDate(info.created_at ?? info.createdAt);
+
     const paymentDate = this.formatDate(info.payment_date ?? info.paymentDate);
+
     const billMonth = this.formatBillMonth(info.bill_month ?? info.billMonth);
+
+    /*
+     * Existing backend penalty rule:
+     * - No penalty when payment date is on/before due date.
+     * - After the due date, penalty = pending bill amount x fine_percent / 100.
+     * - fine_percent defaults to 5 when the customer has no custom percentage.
+     *
+     * This is only a preview for payment exactly five calendar days after
+     * the due date. The CI3 backend remains the authority for actual payments.
+     */
+    const originalBillAmount = Number(
+      info.bill_amount ??
+        Number(info.total_amount ?? 0) - Number(info.penalty ?? 0),
+    );
+
+    const finePercent = Number(
+      info.fine_percent ??
+        info.customer_fine_percent ??
+        info.consumer_fine_percent ??
+        5,
+    );
+
+    const paymentDateAfterFiveDays = this.addDays(
+      info.due_date ?? info.dueDate,
+      5,
+    );
+
+    const fineAfterFiveDays =
+      Number.isFinite(originalBillAmount) &&
+      Number.isFinite(finePercent) &&
+      originalBillAmount > 0 &&
+      finePercent >= 0
+        ? Math.round(
+            ((originalBillAmount * finePercent) / 100 + Number.EPSILON) * 100,
+          ) / 100
+        : 0;
+
+    const totalAfterFiveDays = originalBillAmount + fineAfterFiveDays;
+
+    console.log("FIVE-DAY LATE PAYMENT PREVIEW:", {
+      dueDate: info.due_date ?? info.dueDate,
+      paymentDateAfterFiveDays: paymentDateAfterFiveDays
+        ? this.formatDate(paymentDateAfterFiveDays)
+        : null,
+      originalBillAmount,
+      finePercent,
+      fineAfterFiveDays,
+      totalAfterFiveDays,
+    });
 
     console.log("THERMAL PRINTER DATE CHECK:", {
       rawDueDate: info.due_date ?? info.dueDate,
+
       formattedDueDate: dueDate,
+
       rawCreatedDate: info.created_at ?? info.createdAt,
+
       formattedCreatedDate: createdDate,
+
       rawPaymentDate: info.payment_date ?? info.paymentDate,
+
       formattedPaymentDate: paymentDate,
     });
 
@@ -766,13 +1098,17 @@ class PrinterService {
     console.log("QR STRING:", info.qr_string);
 
     /* =======================================================
+
        INITIALIZE
+
     ======================================================= */
 
     await this.command(this.commands.INIT);
 
     /* =======================================================
+
        HEADER
+
     ======================================================= */
 
     await this.command(this.commands.CENTER);
@@ -794,11 +1130,16 @@ class PrinterService {
     await this.write("--------------------------------\n");
 
     /* =======================================================
+
        BILL DETAILS
+
     ======================================================= */
+
     /* =======================================================
+
    BILL DETAILS
-======================================================= */
+
+\======================================================= */
 
     await this.command(this.commands.LEFT);
 
@@ -827,7 +1168,9 @@ class PrinterService {
     await this.write("--------------------------------\n");
 
     /* =======================================================
+
        METER READING
+
     ======================================================= */
 
     await this.command(this.commands.BOLD_ON);
@@ -845,7 +1188,9 @@ class PrinterService {
     await this.write("--------------------------------\n");
 
     /* =======================================================
+
        CONSUMPTION CHARGES
+
     ======================================================= */
 
     if (details.length > 0) {
@@ -871,7 +1216,9 @@ class PrinterService {
     }
 
     /* =======================================================
+
        ADDITIONAL FUNDS
+
     ======================================================= */
 
     if (funds.length > 0) {
@@ -891,7 +1238,9 @@ class PrinterService {
     }
 
     /* =======================================================
+
        CHARGES
+
     ======================================================= */
 
     await this.write(`Water Charge : Rs ${this.money(info.water_charge)}\n`);
@@ -914,50 +1263,50 @@ class PrinterService {
        TOTAL
     ======================================================= */
 
-    await this.command(this.commands.BOLD_ON);
-
-    await this.command(this.commands.DOUBLE_SIZE);
-
-    // await this.write(`TOTAL: Rs ${this.money(info.total_amount)}\n`);
-
-    // await this.command(this.commands.NORMAL_SIZE);
-
-    // await this.command(this.commands.BOLD_OFF);
-
-    /* =======================================================
-   PAYMENT PENALTY INFORMATION
-======================================================= */
-
-    const billAmount = Number(
-      info.bill_amount ??
-        Number(info.total_amount ?? 0) - Number(info.penalty ?? 0),
+    const currentBillTotal = Number(
+      info.total_amount ?? originalBillAmount + Number(info.penalty ?? 0),
     );
 
-    const penaltyAmount = Number(info.penalty ?? 0);
-
-    const payableAmount = billAmount + penaltyAmount;
-
-    await this.write("--------------------------------\n");
-
     await this.command(this.commands.BOLD_ON);
-    await this.write("IMPORTANT PAYMENT NOTE\n");
+    await this.command(this.commands.DOUBLE_SIZE);
+    await this.write(`TOTAL: Rs ${this.money(currentBillTotal)}\n`);
+    await this.command(this.commands.NORMAL_SIZE);
     await this.command(this.commands.BOLD_OFF);
 
-    if (dueDate) {
-      await this.write(`If paid after ${dueDate},\n`);
+    /* =======================================================
+       FIVE-DAY LATE PAYMENT ESTIMATE
+
+       This is an estimate for payment exactly five calendar
+       days after the due date, using the same percentage rule
+       as the existing backend calculateLateFine() logic.
+    ======================================================= */
+
+    if (
+      paymentDateAfterFiveDays &&
+      Number.isFinite(originalBillAmount) &&
+      originalBillAmount >= 0 &&
+      Number.isFinite(finePercent) &&
+      finePercent >= 0
+    ) {
+      await this.write("--------------------------------\n");
+      await this.command(this.commands.BOLD_ON);
+      await this.write("LATE PAYMENT INFORMATION\n");
+      await this.command(this.commands.BOLD_OFF);
+
+      await this.write(
+        `If paid on ${this.formatDate(paymentDateAfterFiveDays)}\n`,
+      );
+      await this.write("(5 days after due date):\n");
+      await this.write(`Bill Amount : Rs ${this.money(originalBillAmount)}\n`);
+      await this.write(
+        `Fine (${finePercent}%) : Rs ${this.money(fineAfterFiveDays)}\n`,
+      );
+
+      await this.command(this.commands.BOLD_ON);
+      await this.write(`Total Payable: Rs ${this.money(totalAfterFiveDays)}\n`);
+      await this.command(this.commands.BOLD_OFF);
+      await this.write("--------------------------------\n");
     }
-
-    await this.write(`Bill Amount : Rs ${this.money(billAmount)}\n`);
-
-    await this.write(`Fine        : Rs ${this.money(penaltyAmount)}\n`);
-
-    await this.command(this.commands.BOLD_ON);
-
-    await this.write(`Total       : Rs ${this.money(payableAmount)}\n`);
-
-    await this.command(this.commands.BOLD_OFF);
-
-    await this.write("--------------------------------\n");
 
     /* =======================================================
        PAYMENT STATUS
@@ -965,41 +1314,26 @@ class PrinterService {
 
     if (String(info.status ?? "").toLowerCase() === "paid") {
       await this.command(this.commands.CENTER);
-
       await this.command(this.commands.BOLD_ON);
-
       await this.write("**** PAID ****\n");
-
       await this.command(this.commands.BOLD_OFF);
-
       await this.command(this.commands.LEFT);
-    }
-
-    // await this.write(`Due Date : ${dueDate}\n`);
-
-    // if (createdDate) {
-    //   await this.write(`Created  : ${createdDate}\n`);
-    // }
-
-    /*
-     * Payment date if available.
-     */
-
-    if (paymentDate) {
-      await this.write(`Paid Date : ${paymentDate}\n`);
     }
 
     await this.write("--------------------------------\n");
 
     /* =======================================================
+
        UPI QR CODE
-       
+
        IMPORTANT:
-       
+
        DO NOT PRINT qr_string AS TEXT.
-       
+
        Instead send it to the printer's
+
        ESC/POS QR-code command.
+
     ======================================================= */
 
     if (info.qr_string && String(info.qr_string).trim() !== "") {
@@ -1012,7 +1346,9 @@ class PrinterService {
       await this.command(this.commands.BOLD_OFF);
 
       /*
+
        * ACTUAL QR CODE
+
        */
 
       await this.printQRCode(String(info.qr_string).trim());
@@ -1021,7 +1357,9 @@ class PrinterService {
     }
 
     /* =======================================================
+
        FOOTER
+
     ======================================================= */
 
     await this.command(this.commands.CENTER);
@@ -1035,13 +1373,17 @@ class PrinterService {
     await this.command(this.commands.BOLD_OFF);
 
     /* =======================================================
+
        FEED PAPER
+
     ======================================================= */
 
     await this.write("\n\n\n\n");
 
     /* =======================================================
+
        CUT PAPER
+
     ======================================================= */
 
     try {
@@ -1054,7 +1396,9 @@ class PrinterService {
   }
 
   /* =========================================================
+
      GET DEBUG INFORMATION
+
   ========================================================= */
 
   getPrinterInfo(): any {
@@ -1072,7 +1416,9 @@ class PrinterService {
   }
 
   /* =========================================================
+
      DELAY
+
   ========================================================= */
 
   private sleep(milliseconds: number): Promise<void> {
@@ -1081,8 +1427,10 @@ class PrinterService {
 }
 
 /* =========================================================
+
    SINGLE PRINTER INSTANCE
-========================================================= */
+
+\========================================================= */
 
 const printerService = new PrinterService();
 
